@@ -1,0 +1,19 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+*/build/
+*/*/build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+*.jks
+*.keystore
+!debug.keystore
+
+# Room schema 必须提交，不要忽略：
+# 它是编写和验证数据库迁移的唯一依据（无云端备份，迁移出错就是丢数据）
+!**/schemas/

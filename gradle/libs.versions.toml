@@ -1,0 +1,166 @@
+# 版本目录：所有依赖版本的唯一来源，禁止在 build.gradle.kts 里硬编码版本号。
+#
+# 注意：以下版本号是搭建骨架时的基线，首次在 Android Studio 打开后请执行一次
+#       依赖更新检查（AGP Upgrade Assistant / "Check for updates"）并统一升级。
+#       特别是 material3 —— Material 3 Expressive 的 MotionScheme / 形状变形 API
+#       需要 material3 1.4.0 及以上，若当前 BOM 内的版本较低，用下方 material3
+#       条目单独覆盖。
+
+[versions]
+# --- 构建工具 ---
+agp = "8.9.1"
+kotlin = "2.1.20"
+ksp = "2.1.20-1.0.32"
+
+# --- SDK 版本（对应 PRD 9.2：realme UI 7.0 / Android 16）---
+compileSdk = "36"
+minSdk = "35"
+targetSdk = "36"
+jvmTarget = "17"
+
+# --- AndroidX 基础 ---
+coreKtx = "1.16.0"
+activityCompose = "1.10.1"
+lifecycle = "2.8.7"
+navigationCompose = "2.8.9"
+splashscreen = "1.0.1"
+
+# --- Compose ---
+composeBom = "2025.04.00"
+# Material 3 Expressive 需要 1.4.0+；置空则跟随 BOM
+material3 = "1.4.0-alpha13"
+
+# --- 数据 ---
+room = "2.7.0"
+datastore = "1.1.4"
+
+# --- DI ---
+hilt = "2.56.1"
+hiltNavigationCompose = "1.2.0"
+
+# --- 异步 / 后台 ---
+coroutines = "1.10.1"
+workManager = "2.10.0"
+hiltWork = "1.2.0"
+
+# --- 网络 ---
+okhttp = "4.12.0"
+retrofit = "2.11.0"
+kotlinxSerialization = "1.8.0"
+retrofitSerializationConverter = "1.0.0"
+
+# --- 小组件 ---
+glance = "1.1.1"
+
+# --- 图片 ---
+coil = "2.7.0"
+
+# --- 动效组件库（PRD 6.1）---
+haze = "1.5.0"           # 毛玻璃
+lottie = "6.6.2"         # 矢量动画
+konfetti = "2.0.5"       # 庆祝粒子
+
+# --- 测试 ---
+junit = "4.13.2"
+androidxTestExt = "1.2.1"
+espresso = "3.6.1"
+benchmarkMacro = "1.3.4"
+
+[libraries]
+# --- AndroidX 基础 ---
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
+
+# --- Lifecycle ---
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+
+# --- Compose（版本由 BOM 统一管理）---
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+androidx-compose-animation = { group = "androidx.compose.animation", name = "animation" }
+# material3 单独指定版本以获取 Expressive API；不需要时删掉 version.ref 即跟随 BOM
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+
+# --- 导航 ---
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+
+# --- Room ---
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+
+# --- DataStore ---
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+
+# --- Hilt ---
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
+androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+androidx-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hiltWork" }
+androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hiltWork" }
+
+# --- 协程 ---
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+
+# --- WorkManager ---
+androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }
+
+# --- 网络 ---
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-kotlinx-serialization = { group = "com.jakewharton.retrofit", name = "retrofit2-kotlinx-serialization-converter", version.ref = "retrofitSerializationConverter" }
+
+# --- 小组件 ---
+androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
+androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
+
+# --- 图片 ---
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# --- 动效 ---
+haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
+haze-materials = { group = "dev.chrisbanes.haze", name = "haze-materials", version.ref = "haze" }
+lottie-compose = { group = "com.airbnb.android", name = "lottie-compose", version.ref = "lottie" }
+konfetti-compose = { group = "nl.dionsegijn", name = "konfetti-compose", version.ref = "konfetti" }
+
+# --- 测试 ---
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExt" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
+androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "benchmarkMacro" }
+
+# --- 供 build-logic 约定插件以依赖形式引用 Gradle 插件 ---
+android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }
+kotlin-gradlePlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+compose-gradlePlugin = { group = "org.jetbrains.kotlin", name = "compose-compiler-gradle-plugin", version.ref = "kotlin" }
+ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+
+# --- 本项目自定义的约定插件（定义在 build-logic 中）---
+myapp-android-application = { id = "myapp.android.application" }
+myapp-android-library = { id = "myapp.android.library" }
+myapp-android-compose = { id = "myapp.android.compose" }
+myapp-android-hilt = { id = "myapp.android.hilt" }
+myapp-android-room = { id = "myapp.android.room" }
+myapp-android-feature = { id = "myapp.android.feature" }

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与 core:designsystem 的 Base 保持一致 -->
+    <color name="splash_background">#FAF9F5</color>
+    <color name="accent">#D97757</color>
+</resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与 core:designsystem 的 BaseDark 保持一致：暖深色，非纯黑（PRD 9.5） -->
+    <color name="splash_background">#1F1E1D</color>
+    <color name="accent">#E08A6C</color>
+</resources>

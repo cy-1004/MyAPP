@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 网络：RSS 拉取、飞书公开网页加载 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- 提醒通知 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      精确闹钟（PRD 9.2）：
+      USE_EXACT_ALARM 安装即授予，无需引导用户去系统设置里手动开。
+      Google Play 对该权限有严格政策限制，但本项目不上架、仅自用，可以使用。
+      SCHEDULE_EXACT_ALARM 保留作为兜底。
+    -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- 开机后重建全部闹钟——ColorOS 上这是提醒能否存活的关键（PRD 9.3） -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- 引导用户加入电池优化白名单时需要 -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- 动效触感反馈 -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!--
+      注意：不申请 READ_MEDIA_IMAGES。
+      minSdk 35 直接用 Photo Picker 选图，免权限（PRD 9.2）。
+    -->
+
+    <application
+        android:name=".MyApplication"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.MyApp.Starting">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.MyApp.Starting"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+              「分享到 MyAPP」：从浏览器/飞书分享链接直接加入知识源（PRD 3.7）。
+              feature:knowledge 落地后启用。
+            -->
+            <!--
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            -->
+        </activity>
+
+        <!-- 开机 / 应用更新后重建闹钟 -->
+        <receiver
+            android:name=".system.BootCompletedReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          自动记账的通知监听服务（PRD 3.6）。feature:ledger 落地后启用。
+        <service
+            android:name="com.myapp.feature.ledger.notification.PaymentNotificationListener"
+            android:exported="false"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+        -->
+
+        <!-- WorkManager 用 Hilt 自定义工厂初始化，关掉默认初始化器 -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
+    </application>
+
+</manifest>
