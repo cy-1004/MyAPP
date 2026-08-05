@@ -22,15 +22,20 @@ data class Todo(
     val isOverdue: Boolean,
 )
 
-private fun TodoEntity.toDomain(now: Long) = Todo(
-    id = id,
-    title = title,
-    note = note,
-    dueAt = dueAt,
-    priority = priority,
-    done = done,
-    isOverdue = dueAt != null && !done && dueAt < now,
-)
+private fun TodoEntity.toDomain(now: Long): Todo {
+    // 先取到局部变量再比较：dueAt 是别的模块（:core:database）里的 public 属性，
+    // Kotlin 不对跨模块的 public 属性做智能转换（它无法保证对方不是自定义 getter）。
+    val due = dueAt
+    return Todo(
+        id = id,
+        title = title,
+        note = note,
+        dueAt = due,
+        priority = priority,
+        done = done,
+        isOverdue = due != null && !done && due < now,
+    )
+}
 
 @Singleton
 class TodoRepository @Inject constructor(
