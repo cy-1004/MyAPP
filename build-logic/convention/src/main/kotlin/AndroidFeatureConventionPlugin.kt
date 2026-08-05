@@ -20,6 +20,9 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
         pluginManager.apply("myapp.android.library")
         pluginManager.apply("myapp.android.compose")
         pluginManager.apply("myapp.android.hilt")
+        // feature 会用到类型安全导航（@Serializable 路由 / 参数），
+        // 统一在这里启用序列化编译器插件，省得每个模块各加一次、忘了就运行时崩
+        pluginManager.apply("org.jetbrains.kotlin.plugin.serialization")
 
         dependencies {
             add("implementation", project(":core:common"))
