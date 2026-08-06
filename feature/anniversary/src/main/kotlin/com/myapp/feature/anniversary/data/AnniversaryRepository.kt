@@ -1,5 +1,8 @@
 package com.myapp.feature.anniversary.data
 
+import com.myapp.core.common.contract.ReminderRequest
+import com.myapp.core.common.contract.ReminderScheduler
+import com.myapp.core.common.contract.ReminderSource
 import com.myapp.core.common.di.IoDispatcher
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.common.time.LunarCalendar
@@ -92,11 +95,18 @@ data class AnniversaryDraft(
     val canSave: Boolean get() = title.isNotBlank()
 }
 
+/** 纪念日提醒的业务唯一键。 */
+fun anniversaryReminderKey(id: Long): String = "anniversary:$id"
+
+/** 提醒统一在当天上午 9 点触发，PRD 未定制到具体时刻，选一个不打扰睡眠的默认值。 */
+private const val REMINDER_HOUR = 9
+
 @Singleton
 class AnniversaryRepository @Inject constructor(
     private val dao: AnniversaryDao,
+    private val reminderScheduler: ReminderScheduler,
     @IoDispatcher private val io: CoroutineDispatcher,
-) {
+) : ReminderSource {
 
     /**
      * 全部纪念日，按「还有几天」升序。
@@ -189,13 +199,14 @@ class AnniversaryRepository @Inject constructor(
             dao.clearPinned(now)
             dao.setPinned(id, now)
         }
-        // TODO 注册提前 remindDaysBefore 天的提醒闹钟（ReminderScheduler）
+        val saved = dao.getById(id)?.toDomain(AppTime.today())
+        scheduleReminder(id, saved)
         id
     }
 
     suspend fun delete(id: Long): Unit = withContext(io) {
         dao.softDelete(id, AppTime.now())
-        // TODO 取消对应的提醒闹钟
+        reminderScheduler.cancel(anniversaryReminderKey(id))
     }
 
     /** 撤销删除。软删除保留整行，恢复无损。 */
@@ -207,6 +218,34 @@ class AnniversaryRepository @Inject constructor(
         val now = AppTime.now()
         dao.clearPinned(now)
         dao.setPinned(id, now)
+    }
+
+    /** 开机重建用：全部有效纪念日各自算一次下一次触发时间。 */
+    override suspend fun pendingReminders(): List<ReminderRequest> = withContext(io) {
+        val today = AppTime.today()
+        dao.getAllActive().mapNotNull { entity -> reminderRequest(entity.toDomain(today)) }
+    }
+
+    /** 没有下一次（比如已过完的一次性纪念日）就取消旧闹钟而不是留着一个不会响的注册。 */
+    private fun scheduleReminder(id: Long, anniversary: Anniversary?) {
+        val request = anniversary?.let { reminderRequest(it) }
+        if (request != null) {
+            reminderScheduler.schedule(request.key, request.triggerAtMillis, request.title, request.body)
+        } else {
+            reminderScheduler.cancel(anniversaryReminderKey(id))
+        }
+    }
+
+    private fun reminderRequest(anniversary: Anniversary): ReminderRequest? {
+        val next = anniversary.nextDate ?: return null
+        val triggerDate = next.minusDays(anniversary.remindDaysBefore.toLong())
+        val triggerAt = with(AppTime) { triggerDate.toEpochMilliAtTime(REMINDER_HOUR) }
+        return ReminderRequest(
+            key = anniversaryReminderKey(anniversary.id),
+            triggerAtMillis = triggerAt,
+            title = anniversary.title,
+            body = if (anniversary.remindDaysBefore > 0) "还有 ${anniversary.remindDaysBefore} 天" else "就是今天",
+        )
     }
 }
 

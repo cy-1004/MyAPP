@@ -4,9 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.myapp.core.common.contract.ReminderScheduler
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.todo.data.TodoDraft
 import com.myapp.feature.todo.data.TodoRepository
+import com.myapp.feature.todo.data.todoReminderKey
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
@@ -23,6 +25,7 @@ enum class EditResult { Saved, Deleted }
 @HiltViewModel
 class TodoEditViewModel @Inject constructor(
     private val repository: TodoRepository,
+    private val reminderScheduler: ReminderScheduler,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -57,8 +60,15 @@ class TodoEditViewModel @Inject constructor(
         val current = _draft.value
         if (!current.canSave) return
         viewModelScope.launch {
-            repository.save(current)
-            // TODO 有截止时间时注册提醒闹钟（ReminderScheduler）
+            val id = repository.save(current)
+            val dueAt = current.dueAt
+            val key = todoReminderKey(id)
+            if (dueAt != null) {
+                reminderScheduler.schedule(key, dueAt, title = current.title, body = "待办到期")
+            } else {
+                // 编辑时可能被改成「无截止时间」，把之前注册的闹钟一并取消
+                reminderScheduler.cancel(key)
+            }
             _results.send(EditResult.Saved)
         }
     }

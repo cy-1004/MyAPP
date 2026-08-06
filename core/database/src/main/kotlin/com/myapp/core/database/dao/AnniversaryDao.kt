@@ -24,6 +24,10 @@ interface AnniversaryDao {
     @Query("SELECT * FROM anniversary WHERE id = :id")
     suspend fun getById(id: Long): AnniversaryEntity?
 
+    /** 全部有效纪念日的一次性快照，用于开机后重建提醒闹钟（PRD 9.3）。 */
+    @Query("SELECT * FROM anniversary WHERE deleted_at IS NULL")
+    suspend fun getAllActive(): List<AnniversaryEntity>
+
     @Query("SELECT COUNT(*) FROM anniversary WHERE deleted_at IS NULL")
     fun observeCount(): Flow<Int>
 

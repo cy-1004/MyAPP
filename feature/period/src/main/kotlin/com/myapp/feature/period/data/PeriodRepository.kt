@@ -1,5 +1,8 @@
 package com.myapp.feature.period.data
 
+import com.myapp.core.common.contract.ReminderRequest
+import com.myapp.core.common.contract.ReminderScheduler
+import com.myapp.core.common.contract.ReminderSource
 import com.myapp.core.common.di.IoDispatcher
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.database.dao.PeriodDao
@@ -95,11 +98,24 @@ private const val CYCLE_SAMPLE_SIZE = 6
  */
 private const val MAX_ONGOING_DAYS = 15
 
+/**
+ * 只有一个「下一次预计开始」在追踪，用固定 key 而不是按记录 id——
+ * 每次新记录都会覆盖上一次的预测提醒，语义上正是想要的效果。
+ */
+private const val PERIOD_REMINDER_KEY = "period:next"
+
+/** 预计开始日前 N 天提醒，PRD 3.2 默认 2 天（暂未做成可配置项）。 */
+private const val REMINDER_LEAD_DAYS = 2L
+
+/** 提醒统一在当天上午 9 点触发。 */
+private const val REMINDER_HOUR = 9
+
 @Singleton
 class PeriodRepository @Inject constructor(
     private val dao: PeriodDao,
+    private val reminderScheduler: ReminderScheduler,
     @IoDispatcher private val io: CoroutineDispatcher,
-) {
+) : ReminderSource {
 
     fun observeState(): Flow<PeriodState> = dao.observeAll().map { list ->
         // today 每次订阅取一次即可：跨过零点最多是天数晚一步刷新，
@@ -121,7 +137,7 @@ class PeriodRepository @Inject constructor(
                 updatedAt = now,
             ),
         )
-        // TODO 重排下一次预计开始日的提醒闹钟（ReminderScheduler）
+        rescheduleNextReminder()
     }
 
     /**
@@ -148,14 +164,48 @@ class PeriodRepository @Inject constructor(
                     updatedAt = AppTime.now(),
                 ),
             )
+            // 改的可能是最近一条记录的起始日，预测会跟着变
+            rescheduleNextReminder()
         }
 
     suspend fun delete(id: Long): Unit = withContext(io) {
         dao.softDelete(id, AppTime.now())
+        rescheduleNextReminder()
     }
 
     suspend fun restore(id: Long): Unit = withContext(io) {
         dao.restore(id, AppTime.now())
+        rescheduleNextReminder()
+    }
+
+    /** 开机重建用：只有一条「下一次预计开始」的提醒。 */
+    override suspend fun pendingReminders(): List<ReminderRequest> = withContext(io) {
+        listOfNotNull(nextReminderRequest())
+    }
+
+    /** 用最近的记录重算预测，覆盖式重排提醒；没有足够数据时取消旧的。 */
+    private suspend fun rescheduleNextReminder() {
+        val request = nextReminderRequest()
+        if (request != null) {
+            reminderScheduler.schedule(request.key, request.triggerAtMillis, request.title, request.body)
+        } else {
+            reminderScheduler.cancel(PERIOD_REMINDER_KEY)
+        }
+    }
+
+    private suspend fun nextReminderRequest(): ReminderRequest? {
+        // +1 条才能算出 CYCLE_SAMPLE_SIZE 个间隔（PeriodDao.getRecent 的约定）
+        val records = dao.getRecent(CYCLE_SAMPLE_SIZE + 1).map { it.toDomain() }
+        if (records.isEmpty()) return null
+        val predictedStart = computeState(records, AppTime.today()).predictedStart ?: return null
+        val triggerDate = predictedStart.minusDays(REMINDER_LEAD_DAYS)
+        val triggerAt = with(AppTime) { triggerDate.toEpochMilliAtTime(REMINDER_HOUR) }
+        return ReminderRequest(
+            key = PERIOD_REMINDER_KEY,
+            triggerAtMillis = triggerAt,
+            title = "经期提醒",
+            body = "预计 $REMINDER_LEAD_DAYS 天后开始",
+        )
     }
 }
 

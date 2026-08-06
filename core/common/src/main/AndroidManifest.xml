@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!--
+          精确闹钟触发后的落地点。声明在 :core:common 而不是 :app，
+          与 ReminderScheduler 的实现放在一起——提醒能力是 core 层的东西，
+          :app 只负责组装，不该反过来知道这个 receiver 的存在。
+        -->
+        <receiver
+            android:name="com.myapp.core.common.reminder.ReminderAlarmReceiver"
+            android:enabled="true"
+            android:exported="false" />
+    </application>
+
+</manifest>

@@ -35,6 +35,10 @@ object AppTime {
     fun LocalDate.toEpochMilliAtEndOfDay(): Long =
         atTime(LocalTime.MAX).atZone(zone).toInstant().toEpochMilli()
 
+    /** 指定本地时刻的毫秒数，用于「某天上午 9 点提醒」这类只关心日期的提醒计算。 */
+    fun LocalDate.toEpochMilliAtTime(hour: Int, minute: Int = 0): Long =
+        atTime(hour, minute).atZone(zone).toInstant().toEpochMilli()
+
     fun LocalDateTime.toEpochMilli(): Long =
         atZone(zone).toInstant().toEpochMilli()
 

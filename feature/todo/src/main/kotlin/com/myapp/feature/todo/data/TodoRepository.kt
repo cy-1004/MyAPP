@@ -1,5 +1,8 @@
 package com.myapp.feature.todo.data
 
+import com.myapp.core.common.contract.ReminderRequest
+import com.myapp.core.common.contract.ReminderScheduler
+import com.myapp.core.common.contract.ReminderSource
 import com.myapp.core.common.di.IoDispatcher
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.database.dao.TodoDao
@@ -75,11 +78,15 @@ private fun TodoEntity.toDomain(now: Long): Todo {
     )
 }
 
+/** 待办提醒的业务唯一键，:app 的 [ReminderScheduler] 与本仓库共用同一套约定。 */
+fun todoReminderKey(id: Long): String = "todo:$id"
+
 @Singleton
 class TodoRepository @Inject constructor(
     private val dao: TodoDao,
+    private val reminderScheduler: ReminderScheduler,
     @IoDispatcher private val io: CoroutineDispatcher,
-) {
+) : ReminderSource {
 
     /**
      * 按视图取列表。
@@ -182,7 +189,7 @@ class TodoRepository @Inject constructor(
 
         // 从「原定截止时间」而不是「完成时间」推算，否则拖延几天会把整条链往后推
         val nextDue = RepeatRule.nextDueAt(rule, due) ?: return
-        dao.upsert(
+        val newId = dao.upsert(
             entity.copy(
                 // id 归零让 Room 分配新主键；uuid 也必须重新生成，
                 // 否则新条目会撞上 uuid 唯一索引
@@ -195,12 +202,17 @@ class TodoRepository @Inject constructor(
                 updatedAt = now,
             ),
         )
-        // TODO 为新生成的条目注册提醒闹钟（ReminderScheduler）
+        reminderScheduler.schedule(
+            key = todoReminderKey(newId),
+            triggerAtMillis = nextDue,
+            title = entity.title,
+            body = "待办到期",
+        )
     }
 
     suspend fun delete(id: Long): Unit = withContext(io) {
         dao.softDelete(id, AppTime.now())
-        // TODO 取消对应的提醒闹钟
+        reminderScheduler.cancel(todoReminderKey(id))
     }
 
     /** 撤销删除。软删除保留了整行数据，恢复是无损的。 */
@@ -210,5 +222,17 @@ class TodoRepository @Inject constructor(
 
     private fun endOfWeek(): Long = with(AppTime) {
         today().plusDays(7).toEpochMilliAtStartOfDay()
+    }
+
+    /** 开机重建用：全部未完成、有截止时间且尚未过期的待办（DAO 查询已保证 due_at 非空）。 */
+    override suspend fun pendingReminders(): List<ReminderRequest> = withContext(io) {
+        dao.getPendingReminders(after = AppTime.now()).map { entity ->
+            ReminderRequest(
+                key = todoReminderKey(entity.id),
+                triggerAtMillis = requireNotNull(entity.dueAt),
+                title = entity.title,
+                body = "待办到期",
+            )
+        }
     }
 }

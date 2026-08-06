@@ -41,6 +41,22 @@ interface ReminderScheduler {
     suspend fun rescheduleAll()
 }
 
+/** 一条待提醒项，供 [ReminderScheduler.rescheduleAll] 重新注册闹钟。 */
+data class ReminderRequest(
+    val key: String,
+    val triggerAtMillis: Long,
+    val title: String,
+    val body: String,
+)
+
+/**
+ * 提醒来源。由各 feature 实现并 `@Binds @IntoSet` 绑定——和 [HomeCard] 一样的插件模式，
+ * 这样 `rescheduleAll()` 收集全部实现时，加新模块不用改 scheduler 一行代码。
+ */
+interface ReminderSource {
+    suspend fun pendingReminders(): List<ReminderRequest>
+}
+
 /**
  * 知识源（PRD 4.7.4）。
  * V1 实现是「飞书公开网页 + WebView 正文提取」，
