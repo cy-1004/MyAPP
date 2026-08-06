@@ -1,17 +1,10 @@
 package com.myapp.feature.todo.navigation
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.ui.navigation.Route
+import com.myapp.feature.todo.edit.TodoEditScreen
+import com.myapp.feature.todo.list.TodoListScreen
 
 /**
  * 本 feature 自己的导航图片段（PRD 4.7.3）。
@@ -24,29 +17,11 @@ fun NavGraphBuilder.todoGraph(
     onBack: () -> Unit,
 ) {
     composable<Route.TodoList> {
-        TodoListScreen(onNavigate = onNavigate)
+        TodoListScreen(onNavigate = onNavigate, onBack = onBack)
     }
 
-    composable<Route.TodoDetail> { /* backStackEntry ->
-        val args = backStackEntry.toRoute<Route.TodoDetail>()
-        TodoDetailScreen(id = args.id, onBack = onBack)
-    */ }
-}
-
-/** TODO 完整实现：今日 / 最近 7 天 / 全部 / 已完成 四个视图（PRD 3.3）。 */
-@Composable
-private fun TodoListScreen(onNavigate: (Route) -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(Spacing.xl),
-        verticalArrangement = Arrangement.spacedBy(Spacing.md),
-    ) {
-        Text("待办", style = MaterialTheme.typography.headlineMedium)
-        Text(
-            "列表页待实现",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    // 新建与编辑共用：Route.TodoDetail() 的 id 默认为 0，表示新建
+    composable<Route.TodoDetail> {
+        TodoEditScreen(onBack = onBack)
     }
 }

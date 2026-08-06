@@ -4,6 +4,7 @@ import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -115,8 +116,7 @@ fun MyAppTheme(
             colorScheme = if (darkTheme) DarkScheme else LightScheme,
             typography = AppTypography,
             shapes = AppShapes,
-            // TODO 升级到含 Expressive API 的 material3 后加上：
-            //   motionScheme = MotionScheme.expressive()
+            motionScheme = MotionScheme.expressive(),
             content = content,
         )
     }

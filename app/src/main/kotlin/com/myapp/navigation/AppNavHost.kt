@@ -9,7 +9,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.myapp.core.designsystem.theme.MotionTokens
 import com.myapp.core.ui.navigation.Route
+import com.myapp.feature.anniversary.navigation.anniversaryGraph
 import com.myapp.feature.home.HomeScreen
+import com.myapp.feature.period.navigation.periodGraph
 import com.myapp.feature.todo.navigation.todoGraph
 
 /**
@@ -39,11 +41,12 @@ fun AppNavHost(
         }
 
         todoGraph(onNavigate = onNavigate, onBack = onBack)
+        anniversaryGraph(onNavigate = onNavigate, onBack = onBack)
+        periodGraph(onBack = onBack)
 
         // 后续 feature 按此模式逐个注册：
         // noteGraph(onNavigate, onBack)
         // questionGraph(onNavigate, onBack)
-        // periodGraph(onNavigate, onBack)
         // ledgerGraph(onNavigate, onBack)
         // feedGraph(onNavigate, onBack)
         // settingsGraph(onNavigate, onBack)

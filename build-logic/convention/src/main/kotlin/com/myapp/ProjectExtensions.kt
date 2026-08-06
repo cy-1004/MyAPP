@@ -45,6 +45,9 @@ internal fun Project.configureKotlinAndroid(
                 // 在稳定版发布前均需显式 opt-in（见 PRD 9.2.1）
                 "-opt-in=kotlin.RequiresOptIn",
                 "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+                // Expressive（MotionScheme、形状变形）有自己的标记，
+                // 与 ExperimentalMaterial3Api 是两个开关，只开前者不够
+                "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi",
                 "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
                 "-opt-in=androidx.compose.animation.ExperimentalSharedTransitionApi",
             )

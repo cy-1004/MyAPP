@@ -79,7 +79,8 @@ class TodoHomeCard @Inject constructor() : HomeCard {
                         EmptyState(
                             text = "今天没有安排 🎉",
                             actionLabel = "加一条",
-                            onAction = { onNavigate(Route.TodoList) },
+                            // 直接进新建页而不是列表页——空态里点「加一条」的意图很明确
+                            onAction = { onNavigate(Route.TodoDetail()) },
                         )
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {

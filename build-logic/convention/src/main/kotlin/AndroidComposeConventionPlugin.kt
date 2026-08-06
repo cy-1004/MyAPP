@@ -40,6 +40,9 @@ class AndroidComposeConventionPlugin : Plugin<Project> {
             add("implementation", libs.findLibrary("androidx.compose.foundation").get())
             add("implementation", libs.findLibrary("androidx.compose.animation").get())
             add("implementation", libs.findLibrary("androidx.compose.material3").get())
+            // 图标全集：R8 会把没用到的资源剃掉，release 包不受影响；
+            // 统一在这里加，省得每个模块用到一个新图标就改一次构建脚本
+            add("implementation", libs.findLibrary("androidx.compose.material.icons.extended").get())
             add("implementation", libs.findLibrary("androidx.lifecycle.runtime.compose").get())
             add("implementation", libs.findLibrary("androidx.lifecycle.viewmodel.compose").get())
 

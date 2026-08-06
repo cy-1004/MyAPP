@@ -20,8 +20,21 @@ sealed interface Route {
     @Serializable
     data object TodoList : Route
 
+    /** id 为 0 表示新建。新建与编辑共用一个页面，不值得为此多一条路由。 */
     @Serializable
-    data class TodoDetail(val id: Long) : Route
+    data class TodoDetail(val id: Long = 0L) : Route
+
+    // ---- 纪念日 ----
+    @Serializable
+    data object AnniversaryList : Route
+
+    /** id 为 0 表示新建，与待办同一套约定。 */
+    @Serializable
+    data class AnniversaryDetail(val id: Long = 0L) : Route
+
+    // ---- 经期 ----
+    @Serializable
+    data object PeriodCalendar : Route
 
     // ---- 以下随对应 feature 落地时启用 ----
     @Serializable
@@ -32,12 +45,6 @@ sealed interface Route {
 
     @Serializable
     data object QuestionList : Route
-
-    @Serializable
-    data object PeriodCalendar : Route
-
-    @Serializable
-    data object AnniversaryList : Route
 
     @Serializable
     data object Ledger : Route

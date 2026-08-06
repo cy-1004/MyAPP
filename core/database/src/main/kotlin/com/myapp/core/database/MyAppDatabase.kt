@@ -2,7 +2,11 @@ package com.myapp.core.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import com.myapp.core.database.dao.AnniversaryDao
+import com.myapp.core.database.dao.PeriodDao
 import com.myapp.core.database.dao.TodoDao
+import com.myapp.core.database.model.AnniversaryEntity
+import com.myapp.core.database.model.PeriodRecordEntity
 import com.myapp.core.database.model.TodoEntity
 
 /**
@@ -25,18 +29,22 @@ import com.myapp.core.database.model.TodoEntity
 @Database(
     entities = [
         TodoEntity::class,
+        AnniversaryEntity::class,
+        PeriodRecordEntity::class,
         // 后续按 PRD 交付计划逐个加入：
-        // PeriodRecordEntity, AnniversaryEntity, NoteEntity, NoteFtsEntity,
+        // NoteEntity, NoteFtsEntity,
         // QuestionEntity, TransactionEntity, BudgetEntity, BudgetCategoryEntity,
         // MerchantCategoryMapEntity, ParseRuleEntity,
         // KnowledgeSourceEntity, KnowledgeContentEntity, KnowledgeReviewEntity,
         // RssFeedEntity, RssArticleEntity,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class MyAppDatabase : RoomDatabase() {
     abstract fun todoDao(): TodoDao
+    abstract fun anniversaryDao(): AnniversaryDao
+    abstract fun periodDao(): PeriodDao
 }
 
 internal const val DATABASE_NAME = "myapp.db"

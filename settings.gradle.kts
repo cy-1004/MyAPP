@@ -39,10 +39,10 @@ include(":core:ui")            // 导航契约 Route、首页卡片插槽 HomeCa
 // ---- 业务层：feature 之间互不依赖，只依赖 core ----
 include(":feature:home")       // 首页：只做卡片编排，不认识具体业务
 include(":feature:todo")       // 待办（P0，同时作为新增模块的参考实现）
+include(":feature:anniversary")// 纪念日（P0，含农历）
+include(":feature:period")     // 经期（P0）
 
 // ---- 以下模块按 PRD 交付计划逐期加入，取消注释即可 ----
-// include(":feature:period")        // 经期            P0
-// include(":feature:anniversary")   // 纪念日          P0
 // include(":feature:note")          // 笔记            P0
 // include(":feature:question")      // 疑问            P0
 // include(":feature:ledger")        // 记账 + 预算      P1

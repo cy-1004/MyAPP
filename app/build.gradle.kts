@@ -57,6 +57,8 @@ dependencies {
     // ---- feature：新增 feature 时在这里加一行，同时在 AppNavHost 注册导航图 ----
     implementation(projects.feature.home)
     implementation(projects.feature.todo)
+    implementation(projects.feature.anniversary)
+    implementation(projects.feature.period)
 
     // ---- AndroidX ----
     implementation(libs.androidx.core.ktx)
