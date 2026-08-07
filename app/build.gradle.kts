@@ -14,10 +14,23 @@ android {
         versionName = "0.1.0"
     }
 
+    // 项目内独立开发签名（交接文档：换电脑签名不一致导致无法覆盖安装）。
+    // debug.keystore 提交到 git 仓库，所有机器用同一份，避免 ~/.android/debug.keystore 漂移。
+    // 日常自用不上架，用 debug keystore 签 release 也无妨。
+    signingConfigs {
+        create("dev") {
+            storeFile = rootProject.file("keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
+            signingConfig = signingConfigs.getByName("dev")
         }
         release {
             isMinifyEnabled = true
@@ -28,8 +41,8 @@ android {
             )
             // 日常自用建议直接跑 release 包：R8 优化后的性能才是真实体验，
             // 且 realme UI 对 debug 包有额外的安装/权限拦截（PRD 9.6）。
-            // 用固定 keystore 签名后即可长期覆盖安装。
-            signingConfig = signingConfigs.getByName("debug")
+            // 用项目内 dev keystore 签名后即可长期覆盖安装。
+            signingConfig = signingConfigs.getByName("dev")
         }
     }
 
@@ -59,6 +72,7 @@ dependencies {
     implementation(projects.feature.todo)
     implementation(projects.feature.anniversary)
     implementation(projects.feature.period)
+    implementation(projects.feature.settings)
 
     // ---- AndroidX ----
     implementation(libs.androidx.core.ktx)

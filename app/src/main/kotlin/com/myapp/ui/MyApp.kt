@@ -7,10 +7,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
+import com.myapp.core.ui.navigation.Route
 import com.myapp.navigation.AppNavHost
 
 @Composable
-fun MyApp() {
+fun MyApp(initialRoute: Route) {
     val navController = rememberNavController()
 
     Scaffold(
@@ -21,6 +22,7 @@ fun MyApp() {
     ) { innerPadding ->
         AppNavHost(
             navController = navController,
+            startDestination = initialRoute,
             modifier = Modifier.padding(innerPadding),
         )
     }

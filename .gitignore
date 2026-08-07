@@ -14,6 +14,10 @@ local.properties
 *.keystore
 !debug.keystore
 
+# Claude Code 本地状态 + Kotlin 编译器 session 文件，不应入库
+.claude/
+.kotlin/
+
 # Room schema 必须提交，不要忽略：
 # 它是编写和验证数据库迁移的唯一依据（无云端备份，迁移出错就是丢数据）
 !**/schemas/

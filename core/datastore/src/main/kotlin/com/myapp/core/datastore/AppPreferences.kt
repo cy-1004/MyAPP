@@ -49,6 +49,16 @@ class AppPreferences @Inject constructor(
         store.edit { it[booleanPreferencesKey("feature.$featureId.enabled")] = enabled }
     }
 
+    // ---- Onboarding：保活自检（PRD 9.3）----
+    /** 是否已完成保活自检向导。false = 首次安装未走过，需强制引导。 */
+    val keepAliveChecked: Flow<Boolean> = store.data.map {
+        it[booleanPreferencesKey("onboarding.keepAliveChecked")] ?: false
+    }
+
+    suspend fun setKeepAliveChecked(value: Boolean) {
+        store.edit { it[booleanPreferencesKey("onboarding.keepAliveChecked")] = value }
+    }
+
     private fun read(key: Preferences.Key<String>, default: String): Flow<String> =
         store.data.map { it[key] ?: default }
 

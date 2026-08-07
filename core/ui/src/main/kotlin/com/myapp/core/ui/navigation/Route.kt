@@ -60,6 +60,10 @@ sealed interface Route {
 
     @Serializable
     data object Settings : Route
+
+    /** 保活自检（PRD 9.3）。首启强制走一遍，后续从设置页进入。 */
+    @Serializable
+    data object KeepAliveCheck : Route
 }
 
 /** 底部导航的一级入口。 */
