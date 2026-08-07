@@ -2,18 +2,21 @@ package com.myapp.core.designsystem.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.sp
+import com.myapp.core.designsystem.R
 
 /**
  * 排版（PRD 5.2）。
  *
- * 字体族目前先用系统默认占位。接入自定义字体时：
- *   1. 把 ttf 放到 core/designsystem/src/main/res/font/
- *   2. 替换下面两个 FontFamily
- * 计划：标题用衬线（Noto Serif SC），正文用无衬线（MiSans，免费商用）。
+ * 已内嵌子集化中文字体（禁止回退到系统默认，不同 ROM 默认字体差异很大）：
+ * - 标题/倒数天数：Noto Serif SC（SIL OFL，免费商用），字重 400/500
+ * - 正文/UI/按钮/标签：MiSans（小米官方免费商用），字重 400/500/600/700
+ *   （700 是 Markdown 加粗在用的）
+ * 生成方式见 tools/subset_fonts.py（GB2312 + 常用标点 + 源码实际字符裁剪）。
  * 衬线标题是「文档感/高级感」的主要来源，不要省。
  *
  * **两条硬性约束，改这个文件前必读**（有 TypographyTest 守着）：
@@ -29,8 +32,17 @@ import androidx.compose.ui.unit.sp
  *    留空的样式会退回 Material 的默认字体族与 sp 单位，
  *    既让上面那条约束变得不可控，也会在正式字体接入后出现「一半页面没换字体」。
  */
-val SerifFamily = FontFamily.Serif   // TODO 替换为 Noto Serif SC
-val SansFamily = FontFamily.Default  // TODO 替换为 MiSans
+val SerifFamily = FontFamily(
+    Font(R.font.noto_serif_sc_regular, FontWeight.Normal),
+    Font(R.font.noto_serif_sc_medium, FontWeight.Medium),
+)
+
+val SansFamily = FontFamily(
+    Font(R.font.misans_regular, FontWeight.Normal),
+    Font(R.font.misans_medium, FontWeight.Medium),
+    Font(R.font.misans_semibold, FontWeight.SemiBold),
+    Font(R.font.misans_bold, FontWeight.Bold),
+)
 
 private val lineHeightStyle = LineHeightStyle(
     alignment = LineHeightStyle.Alignment.Center,
