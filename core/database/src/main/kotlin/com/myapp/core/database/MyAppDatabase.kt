@@ -2,10 +2,14 @@ package com.myapp.core.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import com.myapp.core.database.dao.AnniversaryDao
+import com.myapp.core.database.dao.NoteDao
 import com.myapp.core.database.dao.PeriodDao
 import com.myapp.core.database.dao.TodoDao
 import com.myapp.core.database.model.AnniversaryEntity
+import com.myapp.core.database.model.NoteEntity
+import com.myapp.core.database.model.NoteFtsEntity
 import com.myapp.core.database.model.PeriodRecordEntity
 import com.myapp.core.database.model.TodoEntity
 
@@ -31,20 +35,23 @@ import com.myapp.core.database.model.TodoEntity
         TodoEntity::class,
         AnniversaryEntity::class,
         PeriodRecordEntity::class,
+        NoteEntity::class,
+        NoteFtsEntity::class,
         // 后续按 PRD 交付计划逐个加入：
-        // NoteEntity, NoteFtsEntity,
         // QuestionEntity, TransactionEntity, BudgetEntity, BudgetCategoryEntity,
         // MerchantCategoryMapEntity, ParseRuleEntity,
         // KnowledgeSourceEntity, KnowledgeContentEntity, KnowledgeReviewEntity,
         // RssFeedEntity, RssArticleEntity,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
+@TypeConverters(Converters::class)
 abstract class MyAppDatabase : RoomDatabase() {
     abstract fun todoDao(): TodoDao
     abstract fun anniversaryDao(): AnniversaryDao
     abstract fun periodDao(): PeriodDao
+    abstract fun noteDao(): NoteDao
 }
 
 internal const val DATABASE_NAME = "myapp.db"

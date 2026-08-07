@@ -40,8 +40,9 @@ sealed interface Route {
     @Serializable
     data object NoteList : Route
 
+    /** id 为 0 表示新建，与待办同一套约定。 */
     @Serializable
-    data class NoteDetail(val id: Long) : Route
+    data class NoteDetail(val id: Long = 0L) : Route
 
     @Serializable
     data object QuestionList : Route

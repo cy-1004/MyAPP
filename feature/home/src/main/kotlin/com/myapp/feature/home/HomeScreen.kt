@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -135,6 +136,13 @@ private fun GreetingHeader(onNavigate: (Route) -> Unit) {
                 text = weekdayLabel(today.dayOfWeek.value),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.appColors.textSecondary,
+            )
+        }
+        IconButton(onClick = { onNavigate(Route.NoteList) }) {
+            Icon(
+                imageVector = Icons.Outlined.Article,
+                contentDescription = "笔记",
+                tint = MaterialTheme.appColors.textSecondary,
             )
         }
         IconButton(onClick = { onNavigate(Route.Settings) }) {

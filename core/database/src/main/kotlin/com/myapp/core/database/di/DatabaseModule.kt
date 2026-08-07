@@ -3,9 +3,11 @@ package com.myapp.core.database.di
 import android.content.Context
 import androidx.room.Room
 import com.myapp.core.database.ALL_MIGRATIONS
+import com.myapp.core.database.Converters
 import com.myapp.core.database.DATABASE_NAME
 import com.myapp.core.database.MyAppDatabase
 import com.myapp.core.database.dao.AnniversaryDao
+import com.myapp.core.database.dao.NoteDao
 import com.myapp.core.database.dao.PeriodDao
 import com.myapp.core.database.dao.TodoDao
 import dagger.Module
@@ -31,6 +33,7 @@ object DatabaseModule {
         .addMigrations(*ALL_MIGRATIONS)
         // 刻意不写 fallbackToDestructiveMigration()：
         // 无云端备份，宁可迁移失败崩溃暴露问题，也不能静默清空用户数据。
+        .addTypeConverter(Converters())
         .build()
 
     @Provides
@@ -41,4 +44,7 @@ object DatabaseModule {
 
     @Provides
     fun providePeriodDao(db: MyAppDatabase): PeriodDao = db.periodDao()
+
+    @Provides
+    fun provideNoteDao(db: MyAppDatabase): NoteDao = db.noteDao()
 }

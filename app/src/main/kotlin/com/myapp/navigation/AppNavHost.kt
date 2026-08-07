@@ -11,6 +11,7 @@ import com.myapp.core.designsystem.theme.MotionTokens
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.anniversary.navigation.anniversaryGraph
 import com.myapp.feature.home.HomeScreen
+import com.myapp.feature.note.navigation.noteGraph
 import com.myapp.feature.period.navigation.periodGraph
 import com.myapp.feature.settings.navigation.settingsGraph
 import com.myapp.feature.todo.navigation.todoGraph
@@ -59,6 +60,7 @@ fun AppNavHost(
         todoGraph(onNavigate = onNavigate, onBack = onBack)
         anniversaryGraph(onNavigate = onNavigate, onBack = onBack)
         periodGraph(onBack = onBack)
+        noteGraph(onNavigate = onNavigate, onBack = onBack)
         settingsGraph(
             onNavigate = onNavigate,
             onBack = onBack,
@@ -67,7 +69,6 @@ fun AppNavHost(
         )
 
         // 后续 feature 按此模式逐个注册：
-        // noteGraph(onNavigate, onBack)
         // questionGraph(onNavigate, onBack)
         // ledgerGraph(onNavigate, onBack)
         // feedGraph(onNavigate, onBack)

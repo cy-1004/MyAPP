@@ -72,6 +72,7 @@ dependencies {
     implementation(projects.feature.todo)
     implementation(projects.feature.anniversary)
     implementation(projects.feature.period)
+    implementation(projects.feature.note)
     implementation(projects.feature.settings)
 
     // ---- AndroidX ----

@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * `createSql` 字段核对一遍是最快的验证方式。
  */
 
-/** v2：加入 M1 的两张表——纪念日与经期记录。 */
+/** v2：加入 M1 的两张表--纪念日与经期记录。 */
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(
@@ -52,7 +52,59 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+/**
+ * v3：加入 M3 笔记表 + FTS 全文搜索虚表（PRD 3.4 / 4.2）。
+ *
+ * FTS 用外部内容表模式（`contentEntity = NoteEntity`），Room 自动生成
+ * 4 个同步触发器（BeforeUpdate / BeforeDelete / AfterUpdate / AfterInsert），
+ * 把 note.content 的增删改同步到 note_fts。触发器 SQL 必须与
+ * `schemas/3.json` 的 `createSql` 逐字符一致（含触发器名大小写与 `docid` 关键字）。
+ *
+ * `images_json` 存 `` 分隔的相对路径列表，由 [Converters] 转换。
+ */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `note` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`uuid` TEXT NOT NULL, " +
+                "`content` TEXT NOT NULL, " +
+                "`tags` TEXT NOT NULL, " +
+                "`images_json` TEXT NOT NULL, " +
+                "`pinned` INTEGER NOT NULL, " +
+                "`created_at` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL, " +
+                "`deleted_at` INTEGER)",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_note_uuid` ON `note` (`uuid`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_note_pinned` ON `note` (`pinned`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_note_updated_at` ON `note` (`updated_at`)")
+
+        db.execSQL(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS `note_fts` USING FTS4(`content` TEXT NOT NULL, content=`note`)",
+        )
+        // 4 个同步触发器，SQL 与 Room 生成的 MyAppDatabase_Impl 逐字符一致：
+        // - 触发器名不加反引号
+        // - 用 `rowid` 而非 `id`（FTS contentEntity 模式下 Room 的约定）
+        // - `; END` 中间有空格
+        // - 除 BeforeUpdate/BeforeDelete/AfterUpdate 外，还有 AfterInsert
+        db.execSQL(
+            "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_note_fts_BEFORE_UPDATE BEFORE UPDATE ON `note` BEGIN DELETE FROM `note_fts` WHERE `docid`=OLD.`rowid`; END",
+        )
+        db.execSQL(
+            "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_note_fts_BEFORE_DELETE BEFORE DELETE ON `note` BEGIN DELETE FROM `note_fts` WHERE `docid`=OLD.`rowid`; END",
+        )
+        db.execSQL(
+            "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_note_fts_AFTER_UPDATE AFTER UPDATE ON `note` BEGIN INSERT INTO `note_fts`(`docid`, `content`) VALUES (NEW.`rowid`, NEW.`content`); END",
+        )
+        db.execSQL(
+            "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_note_fts_AFTER_INSERT AFTER INSERT ON `note` BEGIN INSERT INTO `note_fts`(`docid`, `content`) VALUES (NEW.`rowid`, NEW.`content`); END",
+        )
+    }
+}
+
 /** 注册到 Room 的全部迁移。新增迁移后记得加进这个数组。 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_1_2,
+    MIGRATION_2_3,
 )
