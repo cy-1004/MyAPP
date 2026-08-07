@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -57,6 +58,25 @@ class AppPreferences @Inject constructor(
 
     suspend fun setKeepAliveChecked(value: Boolean) {
         store.edit { it[booleanPreferencesKey("onboarding.keepAliveChecked")] = value }
+    }
+
+    /**
+     * 保活自检中手动项的勾选状态（PRD 9.3）。
+     *
+     * 手动项代表用户在系统设置里做的物理操作（允许自启动/后台活动/锁任务），
+     * 这些操作不会因为离开 App 就消失，所以勾选状态也要持久化--
+     * 否则每次复查都得重新勾，且完成条件永远满足不了。
+     */
+    val keepAliveManualDone: Flow<Set<String>> = store.data.map {
+        it[stringSetPreferencesKey("onboarding.keepAliveManualDone")] ?: emptySet()
+    }
+
+    suspend fun setKeepAliveManualDone(id: String, done: Boolean) {
+        store.edit { prefs ->
+            val key = stringSetPreferencesKey("onboarding.keepAliveManualDone")
+            val current = prefs[key] ?: emptySet()
+            prefs[key] = if (done) current + id else current - id
+        }
     }
 
     private fun read(key: Preferences.Key<String>, default: String): Flow<String> =

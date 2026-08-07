@@ -36,42 +36,53 @@ class KeepAliveCheckViewModel @Inject constructor(
     private val _items = MutableStateFlow<List<KeepAliveCheckItem>>(emptyList())
     val items: StateFlow<List<KeepAliveCheckItem>> = _items.asStateFlow()
 
+    /**
+     * 从 DataStore 加载的手动项勾选状态。
+     *
+     * 手动项代表用户在系统设置里做的物理操作，不会因为离开 App 就消失，
+     * 所以勾选状态也要持久化--否则每次复查都得重新勾。
+     */
+    private val _manualDone = MutableStateFlow<Set<String>>(emptySet())
+
     private val _completed = Channel<Unit>(Channel.BUFFERED)
     val completed = _completed.receiveAsFlow()
 
     init {
-        refresh()
+        viewModelScope.launch {
+            appPreferences.keepAliveManualDone.collect { done ->
+                _manualDone.value = done
+                rebuildItems()
+            }
+        }
     }
 
     /**
      * 重新检测自动项（用户从系统设置返回后调用）。
-     *
-     * 手动项的勾选状态必须保留--否则用户每次从系统设置返回都得重新勾选，
-     * 且 [canComplete] 会因 manualDone 被重置为 false 而始终无法满足。
+     * 手动项状态从 [_manualDone] 取，不重置。
      */
     fun refresh() {
-        val manualStates = _items.value
-            .filter { it.category == KeepAliveCheckItem.Category.MANUAL }
-            .associate { it.id to it.manualDone }
+        rebuildItems()
+    }
+
+    private fun rebuildItems() {
+        val done = _manualDone.value
         _items.value = buildList {
             add(autoBattery())
             add(autoNotification())
             add(readonlyExactAlarm())
             add(textOnlyNotificationListener())
-            add(manualAutostart().copy(manualDone = manualStates[KeepAliveCheckIds.AUTOSTART] ?: false))
-            add(manualBackground().copy(manualDone = manualStates[KeepAliveCheckIds.BACKGROUND] ?: false))
-            add(manualLockTask().copy(manualDone = manualStates[KeepAliveCheckIds.LOCK_TASK] ?: false))
+            add(manualAutostart().copy(manualDone = KeepAliveCheckIds.AUTOSTART in done))
+            add(manualBackground().copy(manualDone = KeepAliveCheckIds.BACKGROUND in done))
+            add(manualLockTask().copy(manualDone = KeepAliveCheckIds.LOCK_TASK in done))
         }
     }
 
-    /** 手动项勾选/取消勾选。 */
+    /** 手动项勾选/取消勾选。立即更新 UI + 持久化到 DataStore。 */
     fun markManualDone(id: String, checked: Boolean) {
-        _items.value = _items.value.map { item ->
-            if (item.id == id && item.category == KeepAliveCheckItem.Category.MANUAL) {
-                item.copy(manualDone = checked)
-            } else {
-                item
-            }
+        _manualDone.value = if (checked) _manualDone.value + id else _manualDone.value - id
+        rebuildItems()
+        viewModelScope.launch {
+            appPreferences.setKeepAliveManualDone(id, checked)
         }
     }
 
