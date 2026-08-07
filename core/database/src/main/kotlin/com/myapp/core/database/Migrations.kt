@@ -103,8 +103,32 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+/** v4：加入 M4 的疑问表（PRD 3.5）。 */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `question` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`uuid` TEXT NOT NULL, " +
+                "`content` TEXT NOT NULL, " +
+                "`context` TEXT, " +
+                "`tags` TEXT NOT NULL, " +
+                "`status` TEXT NOT NULL, " +
+                "`answer` TEXT, " +
+                "`created_at` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL, " +
+                "`deleted_at` INTEGER, " +
+                "`resolved_at` INTEGER)",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_question_uuid` ON `question` (`uuid`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_question_status` ON `question` (`status`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_question_updated_at` ON `question` (`updated_at`)")
+    }
+}
+
 /** 注册到 Room 的全部迁移。新增迁移后记得加进这个数组。 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
+    MIGRATION_3_4,
 )

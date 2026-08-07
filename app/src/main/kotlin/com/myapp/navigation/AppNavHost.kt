@@ -13,6 +13,7 @@ import com.myapp.feature.anniversary.navigation.anniversaryGraph
 import com.myapp.feature.home.HomeScreen
 import com.myapp.feature.note.navigation.noteGraph
 import com.myapp.feature.period.navigation.periodGraph
+import com.myapp.feature.question.navigation.questionGraph
 import com.myapp.feature.settings.navigation.settingsGraph
 import com.myapp.feature.todo.navigation.todoGraph
 
@@ -61,6 +62,7 @@ fun AppNavHost(
         anniversaryGraph(onNavigate = onNavigate, onBack = onBack)
         periodGraph(onBack = onBack)
         noteGraph(onNavigate = onNavigate, onBack = onBack)
+        questionGraph(onNavigate = onNavigate, onBack = onBack)
         settingsGraph(
             onNavigate = onNavigate,
             onBack = onBack,

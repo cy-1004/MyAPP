@@ -5,11 +5,11 @@ import androidx.room.TypeConverter
 /**
  * Room 全局 TypeConverter。
  *
- * 注册到 [com.myapp.core.database.di.DatabaseModule.provideDatabase] 的
- * `addTypeConverter(Converters())`。
+ * 通过 [com.myapp.core.database.MyAppDatabase] 上的 `@TypeConverters(Converters::class)`
+ * 自动注册--Converters 无依赖，Room 用 no-arg 构造自动实例化即可。
  *
  * 当前只服务 `List<String> <-> String`，用于 [model.NoteEntity.imagesJson]。
- * 用 ``（ASCII Unit Separator，文件名禁用字符）作分隔符--
+ * 用 ``（ASCII Unit Separator，文件名禁用字符）作分隔符--
  * 图片路径里不会出现这个字符，分隔安全。
  *
  * 不用 JSON 序列化库：`:core:database` 没引入 kotlinx.serialization，
@@ -25,6 +25,6 @@ class Converters {
         if (value.isEmpty()) emptyList() else value.split(SEPARATOR)
 
     private companion object {
-        const val SEPARATOR = ""
+        const val SEPARATOR = ""
     }
 }
