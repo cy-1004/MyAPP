@@ -43,6 +43,7 @@ import com.myapp.core.common.time.AppFormatters
 import com.myapp.core.common.time.LunarCalendar
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
+import com.myapp.core.designsystem.component.bringIntoViewOnFocus
 import com.myapp.feature.anniversary.data.AnniversaryRepeat
 import java.time.Instant
 import java.time.LocalDate
@@ -112,8 +113,8 @@ fun AnniversaryEditScreen(
         Column(
             modifier = Modifier
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
                 .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.xl, vertical = Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
@@ -125,7 +126,8 @@ fun AnniversaryEditScreen(
                 shape = MaterialTheme.shapes.small,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(titleFocus),
+                    .focusRequester(titleFocus)
+                    .bringIntoViewOnFocus(),
             )
 
             SectionLabel("日期")
@@ -171,7 +173,9 @@ fun AnniversaryEditScreen(
                 label = { Text("备注（可选）") },
                 minLines = 2,
                 shape = MaterialTheme.shapes.small,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bringIntoViewOnFocus(),
             )
 
             Row(

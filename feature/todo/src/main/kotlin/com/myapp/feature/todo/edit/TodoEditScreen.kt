@@ -44,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
+import com.myapp.core.designsystem.component.bringIntoViewOnFocus
 import com.myapp.feature.todo.data.Priority
 import com.myapp.feature.todo.data.RepeatRule
 import com.myapp.feature.todo.ui.ALL_DAY_END
@@ -122,8 +123,8 @@ fun TodoEditScreen(
         Column(
             modifier = Modifier
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
                 .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.xl, vertical = Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
@@ -135,7 +136,8 @@ fun TodoEditScreen(
                 shape = MaterialTheme.shapes.small,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(titleFocus),
+                    .focusRequester(titleFocus)
+                    .bringIntoViewOnFocus(),
             )
 
             OutlinedTextField(
@@ -144,7 +146,9 @@ fun TodoEditScreen(
                 label = { Text("备注（可选）") },
                 minLines = 3,
                 shape = MaterialTheme.shapes.small,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bringIntoViewOnFocus(),
             )
 
             SectionLabel("截止时间")
