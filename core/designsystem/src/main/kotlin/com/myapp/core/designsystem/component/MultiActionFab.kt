@@ -2,6 +2,7 @@ package com.myapp.core.designsystem.component
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -161,7 +162,16 @@ fun MultiActionFab(
             }
         }
 
-        // 主 FAB
+        // 主 FAB：Add 图标旋转 45° 变成 X，避免图标突变
+        val rotation by animateFloatAsState(
+            targetValue = if (expanded) 45f else 0f,
+            animationSpec = tween(
+                durationMillis = 220,
+                easing = MotionTokens.EmphasizedEasing,
+            ),
+            label = "fabRotation",
+        )
+
         FloatingActionButton(
             onClick = { onExpandedChange(!expanded) },
             modifier = Modifier
@@ -171,8 +181,9 @@ fun MultiActionFab(
             contentColor = MaterialTheme.colorScheme.onPrimary,
         ) {
             Icon(
-                imageVector = if (expanded) Icons.Filled.Close else Icons.Filled.Add,
+                imageVector = Icons.Filled.Add,
                 contentDescription = "快捷操作",
+                modifier = Modifier.rotate(rotation),
             )
         }
     }
