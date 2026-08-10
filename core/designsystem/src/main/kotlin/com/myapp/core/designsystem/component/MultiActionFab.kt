@@ -76,12 +76,12 @@ fun MultiActionFab(
     LaunchedEffect(expanded) {
         if (motionLevel.enableTransitions) {
             actions.forEachIndexed { index, _ ->
-                delay(index * 20L)
+                delay(index * 8L)
                 progress[index].animateTo(
                     targetValue = if (expanded) 1f else 0f,
                     animationSpec = spring(
                         dampingRatio = 0.7f,
-                        stiffness = Spring.StiffnessMedium,
+                        stiffness = Spring.StiffnessHigh,
                     ),
                 )
             }
