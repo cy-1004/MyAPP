@@ -2,8 +2,7 @@ package com.myapp.core.designsystem.component
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -34,10 +33,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.myapp.core.designsystem.theme.LocalMotionLevel
+import com.myapp.core.designsystem.theme.MotionTokens
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.hazeEffect
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -75,15 +77,21 @@ fun MultiActionFab(
 
     LaunchedEffect(expanded) {
         if (motionLevel.enableTransitions) {
-            actions.forEachIndexed { index, _ ->
-                delay(index * 8L)
-                progress[index].animateTo(
-                    targetValue = if (expanded) 1f else 0f,
-                    animationSpec = spring(
-                        dampingRatio = 0.7f,
-                        stiffness = Spring.StiffnessHigh,
-                    ),
-                )
+            // 并发动画：4 个按钮同时启动，各自带 stagger delay，错峰但重叠展开。
+            // 之前用 forEachIndexed 顺序 suspend，按钮逐个出现，观感"卡顿"。
+            coroutineScope {
+                actions.forEachIndexed { index, _ ->
+                    launch {
+                        delay(index * 15L)
+                        progress[index].animateTo(
+                            targetValue = if (expanded) 1f else 0f,
+                            animationSpec = tween(
+                                durationMillis = 220,
+                                easing = MotionTokens.EmphasizedEasing,
+                            ),
+                        )
+                    }
+                }
             }
         } else {
             actions.forEachIndexed { index, _ ->
