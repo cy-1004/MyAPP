@@ -46,7 +46,7 @@ include(":feature:period")     // 经期（P0）
 include(":feature:note")          // 笔记            P0
 include(":feature:question")      // 疑问            P0
 include(":feature:ledger")        // 记账 + 预算      P1
-// include(":feature:widget")        // 桌面小组件       P1
+include(":feature:widget")          // 桌面小组件       P1
 // include(":feature:knowledge")     // 飞书公开页/知识点 P1/P2
 // include(":feature:feed")          // RSS 资讯        P2
 include(":feature:settings")      // 设置 + 保活自检   P1

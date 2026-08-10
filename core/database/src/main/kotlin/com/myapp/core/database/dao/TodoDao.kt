@@ -35,6 +35,45 @@ interface TodoDao {
     )
     fun observeUndoneBefore(now: Long, before: Long): Flow<List<TodoEntity>>
 
+    /**
+     * [observeUndoneBefore] 的一次性版本。桌面小组件在 provideGlance 里取快照用
+     * （Glance 不是观察式 UI，每次 updateAll 重跑 provideGlance 拿最新数据）。
+     */
+    @Query(
+        """
+        SELECT * FROM todo
+        WHERE deleted_at IS NULL
+          AND done = 0
+          AND (due_at IS NULL OR due_at < :before)
+        ORDER BY
+          CASE WHEN due_at IS NOT NULL AND due_at < :now THEN 0 ELSE 1 END,
+          due_at IS NULL,
+          priority DESC,
+          due_at ASC
+        """,
+    )
+    suspend fun getUndoneBefore(now: Long, before: Long): List<TodoEntity>
+
+    /** 今日（含逾期）未完成条目总数，小组件「还有 N 项」用。 */
+    @Query(
+        """
+        SELECT COUNT(*) FROM todo
+        WHERE deleted_at IS NULL AND done = 0
+          AND (due_at IS NULL OR due_at < :before)
+        """,
+    )
+    suspend fun countUndoneBefore(before: Long): Int
+
+    /** 区间内已完成条目数，小组件区分「全部完成」与「今天没安排」用。 */
+    @Query(
+        """
+        SELECT COUNT(*) FROM todo
+        WHERE deleted_at IS NULL AND done = 1
+          AND done_at >= :start AND done_at < :endExclusive
+        """,
+    )
+    suspend fun countDoneInRange(start: Long, endExclusive: Long): Int
+
     /** 全部未完成，不限截止时间。 */
     @Query(
         """

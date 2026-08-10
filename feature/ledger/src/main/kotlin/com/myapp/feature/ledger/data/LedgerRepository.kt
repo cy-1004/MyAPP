@@ -1,8 +1,10 @@
 package com.myapp.feature.ledger.data
 
 import com.myapp.core.common.contract.LedgerWriter
+import com.myapp.core.common.contract.WidgetRefreshNotifier
 import com.myapp.core.common.di.IoDispatcher
 import com.myapp.core.common.time.AppTime
+import com.myapp.core.common.time.BudgetCycle
 import com.myapp.core.database.dao.CategoryDao
 import com.myapp.core.database.dao.TransactionDao
 import com.myapp.core.database.dao.TransactionWithCategory
@@ -131,6 +133,7 @@ fun parseAmountCents(text: String): Long? {
 class LedgerRepository @Inject constructor(
     private val transactionDao: TransactionDao,
     private val categoryDao: CategoryDao,
+    private val widgetRefreshNotifier: WidgetRefreshNotifier,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : LedgerWriter {
 
@@ -189,7 +192,7 @@ class LedgerRepository @Inject constructor(
         val amount = parseAmountCents(draft.amountText)
             ?: error("canSave 校验过这里不应失败：${draft.amountText}")
         val now = AppTime.now()
-        if (draft.isNew) {
+        val id = if (draft.isNew) {
             transactionDao.upsert(
                 TransactionEntity(
                     amount = amount,
@@ -227,14 +230,18 @@ class LedgerRepository @Inject constructor(
             )
             draft.id
         }
+        widgetRefreshNotifier.notifyDataChanged()
+        id
     }
 
     suspend fun delete(id: Long): Unit = withContext(io) {
         transactionDao.softDelete(id, AppTime.now())
+        widgetRefreshNotifier.notifyDataChanged()
     }
 
     suspend fun restore(id: Long): Unit = withContext(io) {
         transactionDao.restore(id, AppTime.now())
+        widgetRefreshNotifier.notifyDataChanged()
     }
 
     // ---- LedgerWriter 契约实现（PRD 4.7.4）----
@@ -251,7 +258,7 @@ class LedgerRepository @Inject constructor(
     ): Long = withContext(io) {
         val now = AppTime.now()
         val categoryId = resolveCategoryId(category)
-        transactionDao.upsert(
+        val id = transactionDao.upsert(
             TransactionEntity(
                 amount = amountCents,
                 direction = direction,
@@ -267,11 +274,14 @@ class LedgerRepository @Inject constructor(
                 updatedAt = now,
             ),
         )
+        widgetRefreshNotifier.notifyDataChanged()
+        id
     }
 
     /** 一键确认待确认条目（不改任何字段，仅状态流转）。 */
     suspend fun confirm(id: Long): Unit = withContext(io) {
         transactionDao.confirmPending(id, AppTime.now())
+        widgetRefreshNotifier.notifyDataChanged()
     }
 
     /** 按名查分类 id；找不到时落「未分类」（isProtected=1 那条）。 */

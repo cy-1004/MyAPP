@@ -89,3 +89,25 @@ interface SyncProvider {
     suspend fun push(): Result<Unit>
     suspend fun pull(): Result<Unit>
 }
+
+/**
+ * 勾选 / 取消勾选待办。由 :feature:todo 实现。
+ *
+ * 桌面小组件的圆圈勾选走这条契约，而不是直接写 TodoDao——重复任务的
+ * 「生成下一次」逻辑在 TodoRepository.setDone 里，绕过它会让小组件与
+ * App 内的行为分叉（下次提醒不会生成）。
+ */
+interface TodoToggleWriter {
+    suspend fun setDone(id: Long, done: Boolean)
+}
+
+/**
+ * 小组件刷新通知（PRD 3.10）。由 :feature:widget 实现。
+ *
+ * 各 feature 在数据变更（新增账目 / 完成待办 / 修改预算 / 增删纪念日）后调用
+ * [notifyDataChanged]，widget 侧收集后对全部已添加的小组件执行 updateAll()。
+ * 纯通知通道，不传数据——widget 自己从 Room 查最新状态。
+ */
+interface WidgetRefreshNotifier {
+    suspend fun notifyDataChanged()
+}

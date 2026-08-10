@@ -1,6 +1,5 @@
-package com.myapp.feature.ledger.data
+package com.myapp.core.common.time
 
-import com.myapp.core.common.time.AppTime
 import java.time.LocalDate
 
 /**
@@ -15,6 +14,9 @@ import java.time.LocalDate
  *
  * cycleStartDay 上限 28：29~31 号在部分月份不存在，落到 28 之后要额外定义
  * 「没有这天怎么办」，收益不值得这份复杂度。真发薪在 30 号的话设 28 号误差只有两天。
+ *
+ * 放 :core:common 而不是 :feature:ledger：桌面小组件也要算「本期剩余」，
+ * 而 feature 之间禁止互相依赖（PRD 4.7.1），周期计算是纯日期数学，归 core 更合适。
  */
 object BudgetCycle {
 

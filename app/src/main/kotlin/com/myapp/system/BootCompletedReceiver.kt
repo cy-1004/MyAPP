@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import com.myapp.core.common.contract.ReminderScheduler
 import com.myapp.core.common.di.ApplicationScope
+import com.myapp.feature.widget.WidgetAlarmReceiver
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +38,8 @@ class BootCompletedReceiver : BroadcastReceiver() {
                 applicationScope.launch {
                     try {
                         reminderScheduler.rescheduleAll()
+                        // 小组件午夜跨天刷新的精确闹钟，重启后要重建（PRD 3.10）
+                        WidgetAlarmReceiver.scheduleMidnightAlarm(context)
                     } finally {
                         pendingResult.finish()
                     }

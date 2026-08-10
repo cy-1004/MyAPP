@@ -6,8 +6,8 @@ import android.service.notification.StatusBarNotification
 import com.myapp.core.common.contract.LedgerWriter
 import com.myapp.core.common.di.ApplicationScope
 import com.myapp.core.common.time.AppTime
+import com.myapp.core.common.time.BudgetCycle
 import com.myapp.core.database.dao.TransactionDao
-import com.myapp.feature.ledger.data.BudgetCycle
 import com.myapp.feature.ledger.data.BudgetRepository
 import com.myapp.feature.ledger.data.LedgerPrefsStore
 import com.myapp.feature.ledger.data.LedgerRepository

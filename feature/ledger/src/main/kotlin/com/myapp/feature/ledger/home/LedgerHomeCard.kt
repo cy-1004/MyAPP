@@ -25,7 +25,7 @@ import com.myapp.core.designsystem.theme.appColors
 import com.myapp.core.ui.home.BaseHomeCard
 import com.myapp.core.ui.home.HomeCardOrder
 import com.myapp.core.ui.navigation.Route
-import com.myapp.feature.ledger.data.BudgetCycle
+import com.myapp.core.common.time.BudgetCycle
 import com.myapp.feature.ledger.ui.cycleRangeText
 import com.myapp.feature.ledger.ui.yuanWithSymbol
 import dagger.Binds

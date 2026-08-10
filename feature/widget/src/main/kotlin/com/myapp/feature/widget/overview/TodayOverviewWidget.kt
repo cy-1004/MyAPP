@@ -1,0 +1,263 @@
+package com.myapp.feature.widget.overview
+
+import android.content.Context
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.glance.GlanceId
+import androidx.glance.GlanceModifier
+import androidx.glance.LocalContext
+import androidx.glance.action.clickable
+import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.provideContent
+import androidx.glance.background
+import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
+import androidx.glance.layout.Column
+import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.height
+import androidx.glance.layout.padding
+import androidx.glance.layout.width
+import androidx.glance.text.FontWeight
+import androidx.glance.text.Text
+import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
+import com.myapp.core.common.time.AppFormatters
+import com.myapp.core.common.time.AppTime
+import com.myapp.core.common.time.BudgetCycle
+import com.myapp.core.database.model.BudgetEntity
+import com.myapp.core.database.model.TodoEntity
+import com.myapp.core.designsystem.theme.budgetColor
+import com.myapp.feature.widget.ToggleTodoCallback
+import com.myapp.feature.widget.WidgetIntents
+import com.myapp.feature.widget.data.WidgetScreens
+import com.myapp.feature.widget.di.WidgetDataProvider
+import com.myapp.feature.widget.ui.WidgetPalette
+import com.myapp.feature.widget.ui.WidgetTextStyles
+import com.myapp.feature.widget.ui.widgetPalette
+import com.myapp.feature.widget.ui.weekdayCn
+import com.myapp.feature.widget.ui.yuanGrouped
+import com.myapp.feature.widget.ui.yuanWithSymbol
+import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.flow.first
+import kotlin.math.roundToInt
+
+/**
+ * W1 今日概览（4×2，PRD 3.10）。
+ *
+ * 日期 + 支出/预算（可在配置页隐藏，不想让旁人看到钱的场景）+ 最多 3 条待办。
+ * 「还有 N 项」中的 N 是显示条数之外的数量；没有待办时区分
+ * 「全部完成」与「今天没有安排」。
+ */
+class TodayOverviewWidget : GlanceAppWidget() {
+
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val entry = EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            WidgetDataProvider::class.java,
+        )
+        val appWidgetId = id.toString().toIntOrNull()
+        val prefs = entry.widgetPrefsStore()
+        val showExpense = appWidgetId?.let { prefs.w1ShowExpense(it).first() } ?: true
+
+        val today = AppTime.todayRange()
+        val now = AppTime.now()
+        val dao = entry.todoDao()
+        val todos = dao.getUndoneBefore(now = now, before = today.last + 1).take(3)
+        val todoTotal = dao.countUndoneBefore(before = today.last + 1)
+        val doneToday = dao.countDoneInRange(start = today.first, endExclusive = today.last + 1)
+
+        val txnDao = entry.transactionDao()
+        val todayExpense = txnDao.sumExpenseInRange(today.first, today.last + 1)
+        val budget = entry.budgetDao().getCurrent()
+        val cycleExpense = budget?.let { b ->
+            val cycle = BudgetCycle.currentCycleRange(b.cycleStartDay)
+            txnDao.sumExpenseInRange(cycle.first, cycle.last + 1)
+        }
+        provideContent {
+            OverviewContent(
+                todos = todos,
+                todoTotal = todoTotal,
+                doneToday = doneToday,
+                showExpense = showExpense,
+                todayExpense = todayExpense,
+                budget = budget,
+                cycleExpense = cycleExpense,
+            )
+        }
+    }
+}
+
+class TodayOverviewWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget
+        get() = TodayOverviewWidget()
+}
+
+@Composable
+private fun OverviewContent(
+    todos: List<TodoEntity>,
+    todoTotal: Int,
+    doneToday: Int,
+    showExpense: Boolean,
+    todayExpense: Long,
+    budget: BudgetEntity?,
+    cycleExpense: Long?,
+) {
+    val palette = LocalContext.current.widgetPalette()
+    Column(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .background(palette.surface)
+            .padding(12.dp),
+    ) {
+        DateRow(palette)
+        if (showExpense) {
+            ExpenseRow(palette, todayExpense, budget, cycleExpense)
+        }
+        Spacer(GlanceModifier.defaultWeight())
+        TodoRow(palette, todos, todoTotal, doneToday)
+    }
+}
+
+@Composable
+private fun DateRow(palette: WidgetPalette) {
+    val context = LocalContext.current
+    val today = AppTime.today()
+    Row(
+        modifier = GlanceModifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "${today.format(AppFormatters.date)} ${today.weekdayCn()}",
+            style = WidgetTextStyles.title.copy(color = ColorProvider(palette.textPrimary)),
+            modifier = GlanceModifier
+                .defaultWeight()
+                .clickable(WidgetIntents.openScreenAction(context, WidgetScreens.HOME)),
+        )
+        Text(
+            text = "＋",
+            style = TextStyle(fontSize = 18.sp, color = ColorProvider(palette.accent)),
+            modifier = GlanceModifier.clickable(WidgetIntents.openLedgerNew(context)),
+        )
+    }
+}
+
+@Composable
+private fun ExpenseRow(
+    palette: WidgetPalette,
+    todayExpense: Long,
+    budget: BudgetEntity?,
+    cycleExpense: Long?,
+) {
+    val context = LocalContext.current
+    Row(
+        modifier = GlanceModifier
+            .fillMaxWidth()
+            .padding(top = 6.dp)
+            .clickable(WidgetIntents.openScreenAction(context, WidgetScreens.LEDGER)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "今日支出 ${todayExpense.yuanWithSymbol()}",
+            style = WidgetTextStyles.body.copy(
+                color = ColorProvider(palette.accent),
+                fontWeight = FontWeight.Medium,
+            ),
+            modifier = GlanceModifier.defaultWeight(),
+        )
+        val remaining = budget?.let { b ->
+            cycleExpense?.let { b.totalAmount - it }
+        }
+        Text(
+            text = if (remaining == null) "未设预算" else "剩余 ${remaining.yuanGrouped()}",
+            style = WidgetTextStyles.caption.copy(color = ColorProvider(palette.textSecondary)),
+        )
+    }
+    if (budget != null && cycleExpense != null) {
+        val ratio = if (budget.totalAmount > 0) {
+            cycleExpense.toFloat() / budget.totalAmount.toFloat()
+        } else {
+            1f
+        }
+        val barColor = budgetColor(ratio, palette.isDark)
+        Row(
+            modifier = GlanceModifier.fillMaxWidth().padding(top = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = GlanceModifier
+                    .width(84.dp)
+                    .height(4.dp)
+                    .background(palette.track),
+            ) {
+                Box(
+                    modifier = GlanceModifier
+                        .width((84f * ratio.coerceIn(0f, 1f)).dp)
+                        .height(4.dp)
+                        .background(barColor),
+                    content = {},
+                )
+            }
+            Spacer(GlanceModifier.width(6.dp))
+            Text(
+                text = "${(ratio * 100).roundToInt().coerceAtLeast(0)}%",
+                style = WidgetTextStyles.label.copy(color = ColorProvider(barColor)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TodoRow(palette: WidgetPalette, todos: List<TodoEntity>, todoTotal: Int, doneToday: Int) {
+    val context = LocalContext.current
+    val tail = when {
+        todoTotal == 0 -> if (doneToday > 0) "全部完成" else "今天没有安排"
+        todoTotal > 3 -> "还有 ${todoTotal - 3} 项"
+        else -> "$todoTotal 项"
+    }
+    Row(
+        modifier = GlanceModifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (todos.isEmpty()) {
+            Text(
+                text = tail,
+                style = WidgetTextStyles.caption.copy(
+                    color = ColorProvider(if (doneToday > 0) palette.success else palette.textTertiary),
+                ),
+                modifier = GlanceModifier.defaultWeight(),
+            )
+        } else {
+            todos.forEach { todo ->
+                Row(
+                    modifier = GlanceModifier.defaultWeight().padding(end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "○",
+                        style = TextStyle(fontSize = 12.sp, color = ColorProvider(palette.accent)),
+                        modifier = GlanceModifier.clickable(ToggleTodoCallback.toggle(todo.id)),
+                    )
+                    Text(
+                        text = todo.title,
+                        style = WidgetTextStyles.caption.copy(color = ColorProvider(palette.textPrimary)),
+                        maxLines = 1,
+                        modifier = GlanceModifier
+                            .defaultWeight()
+                            .clickable(WidgetIntents.openScreenAction(context, WidgetScreens.TODO)),
+                    )
+                }
+            }
+            Text(
+                text = tail,
+                style = WidgetTextStyles.caption.copy(color = ColorProvider(palette.textTertiary)),
+            )
+        }
+    }
+}

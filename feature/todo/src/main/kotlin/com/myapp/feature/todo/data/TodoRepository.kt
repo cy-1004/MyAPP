@@ -3,6 +3,8 @@ package com.myapp.feature.todo.data
 import com.myapp.core.common.contract.ReminderRequest
 import com.myapp.core.common.contract.ReminderScheduler
 import com.myapp.core.common.contract.ReminderSource
+import com.myapp.core.common.contract.TodoToggleWriter
+import com.myapp.core.common.contract.WidgetRefreshNotifier
 import com.myapp.core.common.di.IoDispatcher
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.database.dao.TodoDao
@@ -85,8 +87,9 @@ fun todoReminderKey(id: Long): String = "todo:$id"
 class TodoRepository @Inject constructor(
     private val dao: TodoDao,
     private val reminderScheduler: ReminderScheduler,
+    private val widgetRefreshNotifier: WidgetRefreshNotifier,
     @IoDispatcher private val io: CoroutineDispatcher,
-) : ReminderSource {
+) : ReminderSource, TodoToggleWriter {
 
     /**
      * 按视图取列表。
@@ -132,7 +135,7 @@ class TodoRepository @Inject constructor(
     /** 新建或更新，返回条目 id。 */
     suspend fun save(draft: TodoDraft): Long = withContext(io) {
         val now = AppTime.now()
-        if (draft.isNew) {
+        val id = if (draft.isNew) {
             dao.upsert(
                 TodoEntity(
                     title = draft.title.trim(),
@@ -160,6 +163,8 @@ class TodoRepository @Inject constructor(
             )
             draft.id
         }
+        widgetRefreshNotifier.notifyDataChanged()
+        id
     }
 
     suspend fun add(title: String, dueAt: Long? = null, priority: Int = Priority.NORMAL): Long =
@@ -170,11 +175,15 @@ class TodoRepository @Inject constructor(
      *
      * 完成一条重复任务时，顺带按规则生成下一次——生成的是新条目而不是改旧条目的日期，
      * 这样「已完成」视图里能看到完整的历史记录。
+     *
+     * 同时是 [TodoToggleWriter] 契约实现：桌面小组件的圆圈勾选也走这里，
+     * 保证重复任务生成下一次的行为与 App 内一致。
      */
-    suspend fun setDone(id: Long, done: Boolean): Unit = withContext(io) {
+    override suspend fun setDone(id: Long, done: Boolean): Unit = withContext(io) {
         val now = AppTime.now()
         dao.setDone(id = id, done = done, doneAt = if (done) now else null, now = now)
         if (done) spawnNextOccurrence(id, now)
+        widgetRefreshNotifier.notifyDataChanged()
     }
 
     /**
@@ -213,11 +222,13 @@ class TodoRepository @Inject constructor(
     suspend fun delete(id: Long): Unit = withContext(io) {
         dao.softDelete(id, AppTime.now())
         reminderScheduler.cancel(todoReminderKey(id))
+        widgetRefreshNotifier.notifyDataChanged()
     }
 
     /** 撤销删除。软删除保留了整行数据，恢复是无损的。 */
     suspend fun restore(id: Long): Unit = withContext(io) {
         dao.restore(id, AppTime.now())
+        widgetRefreshNotifier.notifyDataChanged()
     }
 
     private fun endOfWeek(): Long = with(AppTime) {

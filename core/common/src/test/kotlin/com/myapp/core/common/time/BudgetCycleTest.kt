@@ -1,6 +1,5 @@
-package com.myapp.feature.ledger.data
+package com.myapp.core.common.time
 
-import com.myapp.core.common.time.AppTime
 import java.time.LocalDate
 import java.time.ZoneOffset
 import org.junit.After

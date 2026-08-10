@@ -3,8 +3,8 @@ package com.myapp.feature.ledger.list
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myapp.core.common.time.AppTime
+import com.myapp.core.common.time.BudgetCycle
 import com.myapp.feature.ledger.data.Budget
-import com.myapp.feature.ledger.data.BudgetCycle
 import com.myapp.feature.ledger.data.BudgetRepository
 import com.myapp.feature.ledger.data.LedgerPrefsStore
 import com.myapp.feature.ledger.data.LedgerRepository

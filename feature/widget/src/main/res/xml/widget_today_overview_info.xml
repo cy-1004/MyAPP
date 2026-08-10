@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- W1 今日概览：4×2。configure 指向显示/隐藏支出区的配置页 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="com.myapp.feature.widget.overview.OverviewConfigActivity"
+    android:description="@string/widget_today_overview_desc"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

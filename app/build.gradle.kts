@@ -76,6 +76,7 @@ dependencies {
     implementation(projects.feature.question)
     implementation(projects.feature.ledger)
     implementation(projects.feature.settings)
+    implementation(projects.feature.widget)
 
     // ---- AndroidX ----
     implementation(libs.androidx.core.ktx)

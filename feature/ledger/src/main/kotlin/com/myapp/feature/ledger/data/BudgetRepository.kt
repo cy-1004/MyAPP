@@ -1,5 +1,6 @@
 package com.myapp.feature.ledger.data
 
+import com.myapp.core.common.contract.WidgetRefreshNotifier
 import com.myapp.core.common.di.IoDispatcher
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.database.dao.BudgetDao
@@ -35,6 +36,7 @@ data class Budget(
 @Singleton
 class BudgetRepository @Inject constructor(
     private val dao: BudgetDao,
+    private val widgetRefreshNotifier: WidgetRefreshNotifier,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) {
 
@@ -74,6 +76,7 @@ class BudgetRepository @Inject constructor(
                 ),
             )
         }
+        widgetRefreshNotifier.notifyDataChanged()
     }
 
     private fun BudgetEntity.toDomain() = Budget(

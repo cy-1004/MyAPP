@@ -22,6 +22,8 @@ import com.myapp.core.designsystem.theme.MyAppTheme
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.ledger.data.LedgerDeepLink
 import com.myapp.feature.ledger.notification.LedgerNotifierExtras
+import com.myapp.feature.widget.WidgetIntents
+import com.myapp.feature.widget.data.WidgetNavTarget
 import com.myapp.ui.MyApp
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -46,6 +48,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var ledgerDeepLink: LedgerDeepLink
 
+    @Inject
+    lateinit var widgetNavTarget: WidgetNavTarget
+
     /**
      * null = 未读取完，splash 挂住；
      * true = 已完成保活自检（或老用户升级），进 Home；
@@ -68,6 +73,8 @@ class MainActivity : ComponentActivity() {
 
         // 通知点击拉起：把账目 id 写入深链，MyApp 收集后导航到确认页
         handleLedgerDeepLink(intent)
+        // 小组件点击拉起：目标页面写入 WidgetNavTarget，MyApp 收集后导航
+        handleWidgetIntent(intent)
 
         // 3. 异步读 onboarding 标志；老用户升级直接写 true 跳过向导
         appScope.launch {
@@ -124,6 +131,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleLedgerDeepLink(intent)
+        handleWidgetIntent(intent)
     }
 
     private fun handleLedgerDeepLink(intent: Intent?) {
@@ -137,6 +145,12 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (id > 0L) ledgerDeepLink.openTransaction(id)
+    }
+
+    /** 小组件点击的目标页面写入 WidgetNavTarget（冷启动 onCreate / 已在前台 onNewIntent 都要处理）。 */
+    private fun handleWidgetIntent(intent: Intent?) {
+        val screen = intent?.getStringExtra(WidgetIntents.EXTRA_SCREEN) ?: return
+        widgetNavTarget.open(screen)
     }
 
     /**

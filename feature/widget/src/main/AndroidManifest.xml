@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- W3 今日待办（2×2） -->
+        <receiver
+            android:name=".todaytodo.TodayTodoWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_today_todo_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_todo_info" />
+        </receiver>
+
+        <!-- W2 今日支出（2×2） -->
+        <receiver
+            android:name=".todayexpense.TodayExpenseWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_today_expense_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_expense_info" />
+        </receiver>
+
+        <!-- W4 纪念日倒数（2×2） -->
+        <receiver
+            android:name=".anniversary.AnniversaryCountdownWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_anniversary_countdown_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_anniversary_countdown_info" />
+        </receiver>
+
+        <!-- W1 今日概览（4×2） -->
+        <receiver
+            android:name=".overview.TodayOverviewWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_today_overview_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_overview_info" />
+        </receiver>
+
+        <!-- 午夜跨天刷新闹钟，仅本应用内部触达 -->
+        <receiver
+            android:name=".WidgetAlarmReceiver"
+            android:exported="false" />
+
+        <!-- 配置页由启动器（其他应用）启动，exported 必须为 true -->
+        <activity
+            android:name=".overview.OverviewConfigActivity"
+            android:exported="true"
+            android:label="@string/widget_today_overview_name"
+            android:theme="@style/Theme.WidgetConfig">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".anniversary.AnniversaryConfigActivity"
+            android:exported="true"
+            android:label="@string/widget_anniversary_countdown_name"
+            android:theme="@style/Theme.WidgetConfig">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

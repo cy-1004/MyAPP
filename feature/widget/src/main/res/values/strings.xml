@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_today_todo_name">今日待办</string>
+    <string name="widget_today_todo_desc">今日待办事项，点圆圈快速完成</string>
+    <string name="widget_today_expense_name">今日支出</string>
+    <string name="widget_today_expense_desc">今日支出与本期预算进度</string>
+    <string name="widget_anniversary_countdown_name">纪念日倒数</string>
+    <string name="widget_anniversary_countdown_desc">纪念日倒数与里程碑</string>
+    <string name="widget_today_overview_name">今日概览</string>
+    <string name="widget_today_overview_desc">日期、支出预算与今日待办</string>
+</resources>

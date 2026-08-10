@@ -3,9 +3,12 @@ package com.myapp.feature.anniversary.data
 import com.myapp.core.common.contract.ReminderRequest
 import com.myapp.core.common.contract.ReminderScheduler
 import com.myapp.core.common.contract.ReminderSource
+import com.myapp.core.common.contract.WidgetRefreshNotifier
 import com.myapp.core.common.di.IoDispatcher
+import com.myapp.core.common.time.AnniversaryCalculator
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.common.time.LunarCalendar
+import com.myapp.core.common.time.Milestone
 import com.myapp.core.database.dao.AnniversaryDao
 import com.myapp.core.database.model.AnniversaryEntity
 import java.time.LocalDate
@@ -39,9 +42,6 @@ object AnniversaryRepeat {
         else -> "每年重复，倒数到下一次"
     }
 }
-
-/** 累计型纪念日的下一个里程碑。 */
-data class Milestone(val date: LocalDate, val label: String)
 
 /** 领域模型。所有「距今多少天」都在这里算好，UI 不再做日期运算。 */
 data class Anniversary(
@@ -105,6 +105,7 @@ private const val REMINDER_HOUR = 9
 class AnniversaryRepository @Inject constructor(
     private val dao: AnniversaryDao,
     private val reminderScheduler: ReminderScheduler,
+    private val widgetRefreshNotifier: WidgetRefreshNotifier,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ReminderSource {
 
@@ -201,23 +202,27 @@ class AnniversaryRepository @Inject constructor(
         }
         val saved = dao.getById(id)?.toDomain(AppTime.today())
         scheduleReminder(id, saved)
+        widgetRefreshNotifier.notifyDataChanged()
         id
     }
 
     suspend fun delete(id: Long): Unit = withContext(io) {
         dao.softDelete(id, AppTime.now())
         reminderScheduler.cancel(anniversaryReminderKey(id))
+        widgetRefreshNotifier.notifyDataChanged()
     }
 
     /** 撤销删除。软删除保留整行，恢复无损。 */
     suspend fun restore(id: Long): Unit = withContext(io) {
         dao.restore(id, AppTime.now())
+        widgetRefreshNotifier.notifyDataChanged()
     }
 
     suspend fun setPinned(id: Long): Unit = withContext(io) {
         val now = AppTime.now()
         dao.clearPinned(now)
         dao.setPinned(id, now)
+        widgetRefreshNotifier.notifyDataChanged()
     }
 
     /** 开机重建用：全部有效纪念日各自算一次下一次触发时间。 */
@@ -270,14 +275,14 @@ private fun AnniversaryEntity.toDomain(today: LocalDate): Anniversary {
     val origin = LocalDate.ofEpochDay(date)
     val elapsed = ChronoUnit.DAYS.between(origin, today)
     val milestone = if (repeatType == AnniversaryRepeat.CUMULATIVE) {
-        nextMilestone(origin, today, elapsed)
+        AnniversaryCalculator.nextMilestone(origin, today, elapsed)
     } else {
         null
     }
     val next = when (repeatType) {
         AnniversaryRepeat.CUMULATIVE -> milestone?.date
         AnniversaryRepeat.ONCE -> origin.takeIf { !it.isBefore(today) }
-        else -> nextYearlyDate(origin, today, isLunar)
+        else -> AnniversaryCalculator.nextYearlyDate(origin, today, isLunar)
     }
 
     return Anniversary(
@@ -295,48 +300,4 @@ private fun AnniversaryEntity.toDomain(today: LocalDate): Anniversary {
         elapsedDays = elapsed,
         milestone = milestone,
     )
-}
-
-/**
- * 每年重复的下一次公历日期。
- *
- * 农历要走换算：农历生日对应的公历日期每年都不同，直接把年份换掉是错的。
- * 换算失败（超出 1900~2100）时退回公历同月日，保证 UI 永远有个合理结果。
- */
-private fun nextYearlyDate(origin: LocalDate, today: LocalDate, isLunar: Boolean): LocalDate {
-    if (isLunar && LunarCalendar.isSupported(origin)) {
-        val lunar = LunarCalendar.fromSolar(origin)
-        LunarCalendar.nextSolarOccurrence(
-            month = lunar.month,
-            day = lunar.day,
-            isLeapMonth = lunar.isLeapMonth,
-            from = today,
-        )?.let { return it }
-    }
-    // withYear 会把 2 月 29 日自动收敛到 2 月 28 日，正是想要的行为
-    val thisYear = origin.withYear(today.year)
-    return if (thisYear.isBefore(today)) origin.withYear(today.year + 1) else thisYear
-}
-
-/**
- * 累计型的下一个里程碑：**整百天与周年取更近的那个**。
- *
- * 只倒数整百天会漏掉「三周年」这种更有意义的节点，
- * 只倒数周年又会错过「在一起 1000 天」，两者都要。
- */
-private fun nextMilestone(origin: LocalDate, today: LocalDate, elapsed: Long): Milestone {
-    // 当天算第 1 天，所以第 N 天对应 origin.plusDays(N - 1)
-    val currentDayNumber = elapsed + 1
-    val nextHundred = (currentDayNumber / 100 + 1) * 100
-    val hundredDate = origin.plusDays(nextHundred - 1)
-
-    val passedYears = ChronoUnit.YEARS.between(origin, today)
-    val nextYears = passedYears + 1
-    val yearDate = origin.plusYears(nextYears)
-
-    return if (!hundredDate.isAfter(yearDate)) {
-        Milestone(hundredDate, "$nextHundred 天")
-    } else {
-        Milestone(yearDate, "$nextYears 周年")
-    }
 }

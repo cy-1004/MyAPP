@@ -27,6 +27,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.myapp.feature.ledger.data.LedgerDeepLink
 import com.myapp.feature.ledger.navigation.LedgerGraphEntryPoint
+import com.myapp.feature.widget.data.WidgetNavTarget
+import com.myapp.feature.widget.data.WidgetScreens
+import com.myapp.feature.widget.di.WidgetDataProvider
 import dagger.hilt.android.EntryPointAccessors
 import com.myapp.core.designsystem.component.BottomBarItem
 import com.myapp.core.designsystem.component.FabAction
@@ -70,6 +73,27 @@ fun MyApp(initialRoute: Route) {
                     launchSingleTop = true
                 }
                 ledgerDeepLink.consume()
+            }
+        }
+    }
+
+    // 小组件点击 → 目标页面（MainActivity 写入，这里收集后导航）
+    val widgetNavTarget = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            WidgetDataProvider::class.java,
+        ).widgetNavTarget()
+    }
+    LaunchedEffect(Unit) {
+        widgetNavTarget.target.collect { screen ->
+            if (screen != null) {
+                val route = widgetScreenToRoute(screen)
+                if (route != null) {
+                    navController.navigate(route) {
+                        launchSingleTop = true
+                    }
+                }
+                widgetNavTarget.consume()
             }
         }
     }
@@ -157,3 +181,13 @@ private fun TopLevelDestination.toBottomBarItem() = BottomBarItem(
     selectedIcon = selectedIcon,
     unselectedIcon = unselectedIcon,
 )
+
+/** 小组件目标页 → 导航路由；未知页忽略（等 ActionCallback 侧收敛）。 */
+private fun widgetScreenToRoute(screen: String): Route? = when (screen) {
+    WidgetScreens.HOME -> Route.Home
+    WidgetScreens.LEDGER -> Route.Ledger
+    WidgetScreens.LEDGER_NEW -> Route.LedgerDetail()
+    WidgetScreens.TODO -> Route.TodoList
+    WidgetScreens.ANNIVERSARY -> Route.AnniversaryList
+    else -> null
+}
