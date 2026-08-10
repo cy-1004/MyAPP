@@ -1,5 +1,17 @@
 package com.myapp.core.ui.navigation
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.automirrored.outlined.Article
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Newspaper
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.serialization.Serializable
 
 /**
@@ -72,10 +84,15 @@ sealed interface Route {
 }
 
 /** 底部导航的一级入口。 */
-enum class TopLevelDestination(val route: Route, val label: String) {
-    HOME(Route.Home, "首页"),
-    RECORDS(Route.NoteList, "记录"),
-    LEDGER(Route.Ledger, "记账"),
-    FEED(Route.Feed, "资讯"),
-    SETTINGS(Route.Settings, "我的"),
+enum class TopLevelDestination(
+    val route: Route,
+    val label: String,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector,
+) {
+    HOME(Route.Home, "首页", Icons.Filled.Home, Icons.Outlined.Home),
+    RECORDS(Route.NoteList, "记录", Icons.AutoMirrored.Filled.Article, Icons.AutoMirrored.Outlined.Article),
+    LEDGER(Route.Ledger, "记账", Icons.Filled.AccountBalanceWallet, Icons.Outlined.AccountBalanceWallet),
+    FEED(Route.Feed, "资讯", Icons.Filled.Newspaper, Icons.Outlined.Newspaper),
+    SETTINGS(Route.Settings, "我的", Icons.Filled.Settings, Icons.Outlined.Settings),
 }

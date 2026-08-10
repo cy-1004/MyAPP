@@ -12,11 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Article
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -69,7 +64,7 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         item(key = "greeting") {
-            GreetingHeader(onNavigate = onNavigate)
+            GreetingHeader()
         }
 
         // 稳定 key 用卡片 id——顺序变化时不重建整列，也让入场动画不错乱
@@ -117,41 +112,22 @@ private fun StaggeredCard(
 }
 
 @Composable
-private fun GreetingHeader(onNavigate: (Route) -> Unit) {
+private fun GreetingHeader() {
     val today = remember { AppTime.today() }
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.xs),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-        ) {
-            Text(
-                text = today.format(AppFormatters.date),
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            Text(
-                text = weekdayLabel(today.dayOfWeek.value),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.appColors.textSecondary,
-            )
-        }
-        IconButton(onClick = { onNavigate(Route.NoteList) }) {
-            Icon(
-                imageVector = Icons.Outlined.Article,
-                contentDescription = "笔记",
-                tint = MaterialTheme.appColors.textSecondary,
-            )
-        }
-        IconButton(onClick = { onNavigate(Route.Settings) }) {
-            Icon(
-                imageVector = Icons.Outlined.Settings,
-                contentDescription = "设置",
-                tint = MaterialTheme.appColors.textSecondary,
-            )
-        }
+        Text(
+            text = today.format(AppFormatters.date),
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Text(
+            text = weekdayLabel(today.dayOfWeek.value),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.appColors.textSecondary,
+        )
     }
 }
 

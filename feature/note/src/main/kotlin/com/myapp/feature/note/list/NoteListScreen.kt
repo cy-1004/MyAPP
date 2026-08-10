@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
@@ -53,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myapp.core.common.result.Result
 import com.myapp.core.designsystem.component.CardSkeleton
 import com.myapp.core.designsystem.component.EmptyState
+import com.myapp.core.designsystem.component.LocalBottomBarHeight
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
 import com.myapp.core.ui.navigation.Route
@@ -72,7 +72,6 @@ import com.myapp.feature.note.ui.NoteListItem
 @Composable
 fun NoteListScreen(
     onNavigate: (Route) -> Unit,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: NoteListViewModel = hiltViewModel(),
 ) {
@@ -102,11 +101,6 @@ fun NoteListScreen(
         topBar = {
             TopAppBar(
                 title = { Text("笔记", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
@@ -115,6 +109,7 @@ fun NoteListScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { onNavigate(Route.NoteDetail()) },
+                modifier = Modifier.padding(bottom = LocalBottomBarHeight.current),
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {

@@ -16,7 +16,7 @@ fun NavGraphBuilder.noteGraph(
     onBack: () -> Unit,
 ) {
     composable<Route.NoteList> {
-        NoteListScreen(onNavigate = onNavigate, onBack = onBack)
+        NoteListScreen(onNavigate = onNavigate)
     }
     composable<Route.NoteDetail> {
         NoteEditScreen(onBack = onBack)

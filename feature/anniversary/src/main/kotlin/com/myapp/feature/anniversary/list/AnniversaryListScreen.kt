@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myapp.core.common.result.Result
 import com.myapp.core.designsystem.component.CardSkeleton
 import com.myapp.core.designsystem.component.EmptyState
+import com.myapp.core.designsystem.component.LocalBottomBarHeight
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
 import com.myapp.core.ui.navigation.Route
@@ -98,6 +99,7 @@ fun AnniversaryListScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { onNavigate(Route.AnniversaryDetail()) },
+                modifier = Modifier.padding(bottom = LocalBottomBarHeight.current),
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {

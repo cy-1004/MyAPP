@@ -16,6 +16,7 @@ import com.myapp.feature.period.navigation.periodGraph
 import com.myapp.feature.question.navigation.questionGraph
 import com.myapp.feature.settings.navigation.settingsGraph
 import com.myapp.feature.todo.navigation.todoGraph
+import com.myapp.ui.PlaceholderScreen
 
 /**
  * 全局导航图。
@@ -70,9 +71,18 @@ fun AppNavHost(
             isFirstRun = startDestination::class == Route.KeepAliveCheck::class,
         )
 
-        // 后续 feature 按此模式逐个注册：
-        // questionGraph(onNavigate, onBack)
-        // ledgerGraph(onNavigate, onBack)
-        // feedGraph(onNavigate, onBack)
+        // 未实现 feature 的占位页（PRD 3.11 底部导航 5 栏结构稳定）
+        composable<Route.Ledger> {
+            PlaceholderScreen(
+                title = "记账",
+                description = "通知栏自动解析 + 预算，M5 落地后启用",
+            )
+        }
+        composable<Route.Feed> {
+            PlaceholderScreen(
+                title = "资讯",
+                description = "飞书公开页与 RSS，M6/M8 落地后启用",
+            )
+        }
     }
 }
