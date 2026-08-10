@@ -4,16 +4,22 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.myapp.core.database.dao.AnniversaryDao
+import com.myapp.core.database.dao.BudgetDao
+import com.myapp.core.database.dao.CategoryDao
 import com.myapp.core.database.dao.NoteDao
 import com.myapp.core.database.dao.PeriodDao
 import com.myapp.core.database.dao.QuestionDao
 import com.myapp.core.database.dao.TodoDao
+import com.myapp.core.database.dao.TransactionDao
 import com.myapp.core.database.model.AnniversaryEntity
+import com.myapp.core.database.model.BudgetEntity
+import com.myapp.core.database.model.CategoryEntity
 import com.myapp.core.database.model.NoteEntity
 import com.myapp.core.database.model.NoteFtsEntity
 import com.myapp.core.database.model.PeriodRecordEntity
 import com.myapp.core.database.model.QuestionEntity
 import com.myapp.core.database.model.TodoEntity
+import com.myapp.core.database.model.TransactionEntity
 
 /**
  * 应用唯一数据库。
@@ -40,13 +46,16 @@ import com.myapp.core.database.model.TodoEntity
         NoteEntity::class,
         NoteFtsEntity::class,
         QuestionEntity::class,
+        // M5 记账（PRD 3.6）：
+        TransactionEntity::class,
+        CategoryEntity::class,
+        BudgetEntity::class,
         // 后续按 PRD 交付计划逐个加入：
-        // TransactionEntity, BudgetEntity, BudgetCategoryEntity,
-        // MerchantCategoryMapEntity, ParseRuleEntity,
+        // BudgetCategoryEntity, MerchantCategoryMapEntity, ParseRuleEntity,
         // KnowledgeSourceEntity, KnowledgeContentEntity, KnowledgeReviewEntity,
         // RssFeedEntity, RssArticleEntity,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -56,6 +65,9 @@ abstract class MyAppDatabase : RoomDatabase() {
     abstract fun periodDao(): PeriodDao
     abstract fun noteDao(): NoteDao
     abstract fun questionDao(): QuestionDao
+    abstract fun transactionDao(): TransactionDao
+    abstract fun categoryDao(): CategoryDao
+    abstract fun budgetDao(): BudgetDao
 }
 
 internal const val DATABASE_NAME = "myapp.db"

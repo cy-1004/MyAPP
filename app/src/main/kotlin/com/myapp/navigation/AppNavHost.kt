@@ -11,6 +11,7 @@ import com.myapp.core.designsystem.theme.MotionTokens
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.anniversary.navigation.anniversaryGraph
 import com.myapp.feature.home.HomeScreen
+import com.myapp.feature.ledger.navigation.ledgerGraph
 import com.myapp.feature.note.navigation.noteGraph
 import com.myapp.feature.period.navigation.periodGraph
 import com.myapp.feature.question.navigation.questionGraph
@@ -64,6 +65,7 @@ fun AppNavHost(
         periodGraph(onBack = onBack)
         noteGraph(onNavigate = onNavigate, onBack = onBack)
         questionGraph(onNavigate = onNavigate, onBack = onBack)
+        ledgerGraph(onNavigate = onNavigate, onBack = onBack, navController = navController)
         settingsGraph(
             onNavigate = onNavigate,
             onBack = onBack,
@@ -72,12 +74,6 @@ fun AppNavHost(
         )
 
         // 未实现 feature 的占位页（PRD 3.11 底部导航 5 栏结构稳定）
-        composable<Route.Ledger> {
-            PlaceholderScreen(
-                title = "记账",
-                description = "通知栏自动解析 + 预算，M5 落地后启用",
-            )
-        }
         composable<Route.Feed> {
             PlaceholderScreen(
                 title = "资讯",

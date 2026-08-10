@@ -126,9 +126,83 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+/**
+ * v5：加入 M5 记账三张表（PRD 3.6）。
+ *
+ * - `transaction_record`：账目流水。金额存「分」Long（PRD 4.2 严禁 Float/Double）。
+ *   direction/status/source 存字符串不存枚举，加新值不做迁移（与 anniversary.repeat_type
+ *   同约定）。categoryId 引用 category.id，不用 @ForeignKey--分类只软删不硬删。
+ * - `category`：记账分类。内置 10 个默认由 CategorySeeder 在首次 DB 创建时灌入
+ *   （RoomDatabase.Callback.onCreate，不在迁移里）。isProtected 标记「未分类」保留项。
+ * - `budget`：预算。每期一行，effectiveTo=null 表示当前生效。Phase 1 单行。
+ *
+ * 内置分类不在迁移里灌：迁移只跑一次（v4->v5），但老用户升级到 v5 时 category 表
+ * 已存在（虽然空），onCreate 不会触发；新用户首次安装时 onCreate 触发会灌。
+ * 两种场景都靠 CategorySeeder.seedIfEmpty() 兜底（LedgerRepository 首次调用时检查）。
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `transaction_record` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`uuid` TEXT NOT NULL, " +
+                "`amount` INTEGER NOT NULL, " +
+                "`direction` TEXT NOT NULL, " +
+                "`category_id` INTEGER NOT NULL, " +
+                "`merchant` TEXT, " +
+                "`channel` TEXT, " +
+                "`occurred_at` INTEGER NOT NULL, " +
+                "`status` TEXT NOT NULL, " +
+                "`raw_text` TEXT, " +
+                "`source` TEXT NOT NULL, " +
+                "`note` TEXT, " +
+                "`created_at` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL, " +
+                "`deleted_at` INTEGER)",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_transaction_record_uuid` ON `transaction_record` (`uuid`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_record_occurred_at` ON `transaction_record` (`occurred_at`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_record_status` ON `transaction_record` (`status`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_record_category_id` ON `transaction_record` (`category_id`)")
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `category` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`uuid` TEXT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`icon` TEXT NOT NULL, " +
+                "`color` TEXT NOT NULL, " +
+                "`sort_order` INTEGER NOT NULL, " +
+                "`is_active` INTEGER NOT NULL, " +
+                "`is_protected` INTEGER NOT NULL, " +
+                "`parent_id` INTEGER, " +
+                "`created_at` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL, " +
+                "`deleted_at` INTEGER)",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_category_uuid` ON `category` (`uuid`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_category_is_active` ON `category` (`is_active`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_category_sort_order` ON `category` (`sort_order`)")
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `budget` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`cycle_start_day` INTEGER NOT NULL, " +
+                "`total_amount` INTEGER NOT NULL, " +
+                "`effective_from` INTEGER NOT NULL, " +
+                "`effective_to` INTEGER, " +
+                "`auto_rollover` INTEGER NOT NULL, " +
+                "`created_at` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_budget_effective_to` ON `budget` (`effective_to`)")
+    }
+}
+
 /** 注册到 Room 的全部迁移。新增迁移后记得加进这个数组。 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
     MIGRATION_3_4,
+    MIGRATION_4_5,
 )

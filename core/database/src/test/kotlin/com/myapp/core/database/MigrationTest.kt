@@ -24,6 +24,8 @@ import org.robolectric.annotation.Config
  * 2. 数据保留：每个迁移前后都插一条 todo，迁移后查回来，证明 ALTER/CREATE 不动旧表数据
  * 3. 新表就绪：迁移后新表存在且为空（用 SELECT COUNT(*) = 0 间接验证）
  *
+ * **覆盖范围**：v1->v2 / v2->v3 / v3->v4 / v4->v5 单步 + v1->v4 / v1->v5 全链路。
+ *
  * **运行环境**：Robolectric（JVM 单测，无需真机）。@Config(sdk = [35]) 是因为
  * Robolectric 4.14.1 支持到 SDK 35，targetSdk 36 还没支持，显式降一档跑。
  *
@@ -134,6 +136,61 @@ class MigrationTest {
         db.close()
     }
 
+    @Test
+    fun `v4_to_v5_新增transaction_category_budget表_旧数据保留`() {
+        helper.createDatabase(dbName, 4).apply {
+            insertTodo(uuid = "todo-4", title = "买菜", createdAt = 4_000L)
+            insertNote(uuid = "note-4", content = "# v4 笔记", createdAt = 4_100L)
+            insertQuestion(uuid = "q-4", content = "v4 疑问", createdAt = 4_200L)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(dbName, 5, true, MIGRATION_4_5)
+
+        // v4 已有的旧表数据完整保留
+        db.query("SELECT title FROM todo WHERE uuid = 'todo-4'").use { c ->
+            assertTrue(c.moveToFirst()); assertEquals("买菜", c.getString(0))
+        }
+        db.query("SELECT content FROM note WHERE uuid = 'note-4'").use { c ->
+            assertTrue(c.moveToFirst()); assertEquals("# v4 笔记", c.getString(0))
+        }
+        db.query("SELECT content FROM question WHERE uuid = 'q-4'").use { c ->
+            assertTrue(c.moveToFirst()); assertEquals("v4 疑问", c.getString(0))
+        }
+        // v5 三张新表都已就绪且为空（内置分类由 CategorySeeder 在运行时灌，不在迁移里）
+        assertEquals(0, db.count("transaction_record"))
+        assertEquals(0, db.count("category"))
+        assertEquals(0, db.count("budget"))
+        db.close()
+    }
+
+    @Test
+    fun `v1_to_v5_全链路迁移_数据完整保留`() {
+        helper.createDatabase(dbName, 1).apply {
+            insertTodo(uuid = "todo-v5", title = "跨五版验证", createdAt = 1L)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            dbName, 5, true, *ALL_MIGRATIONS,
+        )
+
+        // 跨 5 个版本迁移后，最早的 todo 数据仍在
+        db.query("SELECT title FROM todo WHERE uuid = 'todo-v5'").use { c ->
+            assertTrue(c.moveToFirst()); assertEquals("跨五版验证", c.getString(0))
+        }
+        // 各新表都已就绪
+        assertEquals(0, db.count("anniversary"))
+        assertEquals(0, db.count("period_record"))
+        assertEquals(0, db.count("note"))
+        assertEquals(0, db.count("note_fts"))
+        assertEquals(0, db.count("question"))
+        assertEquals(0, db.count("transaction_record"))
+        assertEquals(0, db.count("category"))
+        assertEquals(0, db.count("budget"))
+        db.close()
+    }
+
     // ---------- 辅助：往各版本 db 插入测试数据 ----------
     //
     // 写成 SupportSQLiteDatabase 扩展，这样在 `helper.createDatabase(...).apply { insertTodo(...) }`
@@ -179,6 +236,16 @@ class MigrationTest {
         "INSERT INTO `note` (`uuid`, `content`, `tags`, `images_json`, `pinned`, " +
             "`created_at`, `updated_at`) " +
             "VALUES ('$uuid', '$content', '', '', 0, $createdAt, $createdAt)",
+    )
+
+    private fun androidx.sqlite.db.SupportSQLiteDatabase.insertQuestion(
+        uuid: String,
+        content: String,
+        createdAt: Long,
+    ) = execSQL(
+        "INSERT INTO `question` (`uuid`, `content`, `tags`, `status`, " +
+            "`created_at`, `updated_at`) " +
+            "VALUES ('$uuid', '$content', '', 'OPEN', $createdAt, $createdAt)",
     )
 }
 

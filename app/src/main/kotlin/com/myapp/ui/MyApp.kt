@@ -1,6 +1,5 @@
 package com.myapp.ui
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,7 +19,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -52,7 +50,6 @@ fun MyApp(initialRoute: Route) {
     val currentEntry by navController.currentBackStackEntryAsState()
     val currentRouteStr = currentEntry?.destination?.route
     val hazeState = remember { HazeState() }
-    val context = LocalContext.current
 
     // 用 route 字符串匹配顶级目的地：toRoute<Route>() 不支持 sealed interface
     // （kotlinx.serialization 多态解码会抛 "Polymorphic value has not been read"）
@@ -116,7 +113,7 @@ fun MyApp(initialRoute: Route) {
                             navController.navigate(Route.QuestionDetail())
                         },
                         FabAction("记一笔", Icons.Outlined.AccountBalanceWallet) {
-                            Toast.makeText(context, "M5 记账功能即将上线", Toast.LENGTH_SHORT).show()
+                            navController.navigate(Route.LedgerDetail())
                         },
                         FabAction("加待办", Icons.Outlined.CheckCircle) {
                             navController.navigate(Route.TodoDetail())

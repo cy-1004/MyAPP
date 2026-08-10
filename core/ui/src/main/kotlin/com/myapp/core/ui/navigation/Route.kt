@@ -66,6 +66,10 @@ sealed interface Route {
     @Serializable
     data object Ledger : Route
 
+    /** id 为 0 表示新建，与待办/笔记同一套约定。 */
+    @Serializable
+    data class LedgerDetail(val id: Long = 0L) : Route
+
     @Serializable
     data object Budget : Route
 

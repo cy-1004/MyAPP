@@ -74,6 +74,7 @@ dependencies {
     implementation(projects.feature.period)
     implementation(projects.feature.note)
     implementation(projects.feature.question)
+    implementation(projects.feature.ledger)
     implementation(projects.feature.settings)
 
     // ---- AndroidX ----

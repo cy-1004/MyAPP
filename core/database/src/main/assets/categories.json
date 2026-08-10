@@ -1,0 +1,12 @@
+[
+  {"name": "餐饮", "icon": "food", "color": "clay", "sortOrder": 1, "isProtected": false},
+  {"name": "交通", "icon": "transport", "color": "mistBlue", "sortOrder": 2, "isProtected": false},
+  {"name": "购物", "icon": "shopping", "color": "mustard", "sortOrder": 3, "isProtected": false},
+  {"name": "娱乐", "icon": "entertainment", "color": "lotus", "sortOrder": 4, "isProtected": false},
+  {"name": "居住", "icon": "housing", "color": "pineGreen", "sortOrder": 5, "isProtected": false},
+  {"name": "医疗", "icon": "medical", "color": "ochre", "sortOrder": 6, "isProtected": false},
+  {"name": "人情", "icon": "gift", "color": "olive", "sortOrder": 7, "isProtected": false},
+  {"name": "学习", "icon": "study", "color": "taupe", "sortOrder": 8, "isProtected": false},
+  {"name": "其他", "icon": "other", "color": "neutralGray", "sortOrder": 9, "isProtected": false},
+  {"name": "未分类", "icon": "uncategorized", "color": "lightGray", "sortOrder": 10, "isProtected": true}
+]
