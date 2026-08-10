@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!--
+          自动记账的通知监听服务（PRD 3.6.1）。声明在本 feature 而不是 :app：
+          监听能力是记账模块自己的东西，:app 只负责组装，不该知道这个 service 的存在。
+          exported=false + BIND_NOTIFICATION_LISTENER_SERVICE：由系统绑定，用户授权通知使用权后启用。
+        -->
+        <service
+            android:name="com.myapp.feature.ledger.notification.PaymentNotificationListener"
+            android:exported="false"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+    </application>
+
+</manifest>

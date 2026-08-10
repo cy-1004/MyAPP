@@ -1,6 +1,7 @@
 package com.myapp
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -19,6 +20,8 @@ import com.myapp.core.common.keepalive.KeepAliveStatusChecker
 import com.myapp.core.datastore.AppPreferences
 import com.myapp.core.designsystem.theme.MyAppTheme
 import com.myapp.core.ui.navigation.Route
+import com.myapp.feature.ledger.data.LedgerDeepLink
+import com.myapp.feature.ledger.notification.LedgerNotifierExtras
 import com.myapp.ui.MyApp
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -40,6 +43,9 @@ class MainActivity : ComponentActivity() {
     @ApplicationScope
     lateinit var appScope: kotlinx.coroutines.CoroutineScope
 
+    @Inject
+    lateinit var ledgerDeepLink: LedgerDeepLink
+
     /**
      * null = 未读取完，splash 挂住；
      * true = 已完成保活自检（或老用户升级），进 Home；
@@ -59,6 +65,9 @@ class MainActivity : ComponentActivity() {
 
         // 2. super.onCreate 后 Hilt 才填充 @Inject lateinit
         super.onCreate(savedInstanceState)
+
+        // 通知点击拉起：把账目 id 写入深链，MyApp 收集后导航到确认页
+        handleLedgerDeepLink(intent)
 
         // 3. 异步读 onboarding 标志；老用户升级直接写 true 跳过向导
         appScope.launch {
@@ -106,6 +115,28 @@ class MainActivity : ComponentActivity() {
                 MyApp(initialRoute = initialRoute)
             }
         }
+    }
+
+    /**
+     * 通知 PendingIntent 用 CLEAR_TOP|SINGLE_TOP 拉起 MainActivity：
+     * 冷启动走 onCreate，已在前台走 onNewIntent，两个入口都要处理。
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleLedgerDeepLink(intent)
+    }
+
+    private fun handleLedgerDeepLink(intent: Intent?) {
+        // getLongExtra 对 Integer extra 会抛 ClassCastException 静默返回默认值，
+        // 深链是外部输入边界，手动按类型读（通知 PendingIntent 存 Long，adb --ei 是 Integer）
+        val id = intent?.extras?.get(LedgerNotifierExtras.TRANSACTION_ID).let { raw ->
+            when (raw) {
+                is Long -> raw
+                is Int -> raw.toLong()
+                else -> return
+            }
+        }
+        if (id > 0L) ledgerDeepLink.openTransaction(id)
     }
 
     /**

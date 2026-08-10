@@ -19,11 +19,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.myapp.feature.ledger.data.LedgerDeepLink
+import com.myapp.feature.ledger.navigation.LedgerGraphEntryPoint
+import dagger.hilt.android.EntryPointAccessors
 import com.myapp.core.designsystem.component.BottomBarItem
 import com.myapp.core.designsystem.component.FabAction
 import com.myapp.core.designsystem.component.LocalBottomBarHeight
@@ -50,6 +54,25 @@ fun MyApp(initialRoute: Route) {
     val currentEntry by navController.currentBackStackEntryAsState()
     val currentRouteStr = currentEntry?.destination?.route
     val hazeState = remember { HazeState() }
+
+    // 自动记账通知 → 确认页深链（MainActivity 写入，这里收集后导航）
+    val context = LocalContext.current
+    val ledgerDeepLink = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            LedgerGraphEntryPoint::class.java,
+        ).ledgerDeepLink()
+    }
+    LaunchedEffect(Unit) {
+        ledgerDeepLink.target.collect { id ->
+            if (id != null) {
+                navController.navigate(Route.LedgerDetail(id)) {
+                    launchSingleTop = true
+                }
+                ledgerDeepLink.consume()
+            }
+        }
+    }
 
     // 用 route 字符串匹配顶级目的地：toRoute<Route>() 不支持 sealed interface
     // （kotlinx.serialization 多态解码会抛 "Polymorphic value has not been read"）

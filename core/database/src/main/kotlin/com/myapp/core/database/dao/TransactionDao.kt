@@ -120,4 +120,22 @@ interface TransactionDao {
 
     @Query("UPDATE transaction_record SET deleted_at = NULL, updated_at = :now WHERE id = :id")
     suspend fun restore(id: Long, now: Long)
+
+    /** 确认一笔待确认账目（自动记账解析落库后，用户确认/修改时调用）。 */
+    @Query("UPDATE transaction_record SET status = 'CONFIRMED', updated_at = :now WHERE id = :id AND status = 'PENDING'")
+    suspend fun confirmPending(id: Long, now: Long)
+
+    /**
+     * 自动记账去重：查 :since 之后是否已有相同原文的待确认条目。
+     * 支付 App 偶尔会重复投递同一通知，无此检查会重复入账。
+     */
+    @Query(
+        """
+        SELECT id FROM transaction_record
+        WHERE raw_text = :raw AND status = 'PENDING' AND deleted_at IS NULL
+          AND occurred_at >= :since
+        LIMIT 1
+        """,
+    )
+    suspend fun getPendingByRawText(raw: String, since: Long): Long?
 }

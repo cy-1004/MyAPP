@@ -54,6 +54,8 @@ data class TransactionDraft(
     val channel: String? = null,
     val occurredAt: Long = AppTime.now(),
     val note: String = "",
+    /** 加载时条目是否为 PENDING（自动记账落库）。保存后编辑页据此触发学习与通知撤除。 */
+    val wasPending: Boolean = false,
 ) {
     val isNew: Boolean get() = id == 0L
 
@@ -178,6 +180,7 @@ class LedgerRepository @Inject constructor(
             channel = entity.channel,
             occurredAt = entity.occurredAt,
             note = entity.note.orEmpty(),
+            wasPending = entity.status == TransactionStatus.PENDING,
         )
     }
 
@@ -213,6 +216,12 @@ class LedgerRepository @Inject constructor(
                     channel = draft.channel,
                     occurredAt = draft.occurredAt,
                     note = draft.note.trim().ifBlank { null },
+                    // 自动记账落库的 PENDING 条目，用户编辑保存 = 确认
+                    status = if (existing.status == TransactionStatus.PENDING) {
+                        TransactionStatus.CONFIRMED
+                    } else {
+                        existing.status
+                    },
                     updatedAt = now,
                 ),
             )
@@ -238,13 +247,14 @@ class LedgerRepository @Inject constructor(
         category: String?,
         occurredAt: Long,
         raw: String?,
+        direction: String,
     ): Long = withContext(io) {
         val now = AppTime.now()
         val categoryId = resolveCategoryId(category)
         transactionDao.upsert(
             TransactionEntity(
                 amount = amountCents,
-                direction = TransactionDirection.EXPENSE,
+                direction = direction,
                 categoryId = categoryId,
                 merchant = merchant?.trim()?.ifBlank { null },
                 channel = null,
@@ -257,6 +267,11 @@ class LedgerRepository @Inject constructor(
                 updatedAt = now,
             ),
         )
+    }
+
+    /** 一键确认待确认条目（不改任何字段，仅状态流转）。 */
+    suspend fun confirm(id: Long): Unit = withContext(io) {
+        transactionDao.confirmPending(id, AppTime.now())
     }
 
     /** 按名查分类 id；找不到时落「未分类」（isProtected=1 那条）。 */

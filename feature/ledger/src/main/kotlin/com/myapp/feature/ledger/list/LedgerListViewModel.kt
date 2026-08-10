@@ -6,9 +6,11 @@ import com.myapp.core.common.time.AppTime
 import com.myapp.feature.ledger.data.Budget
 import com.myapp.feature.ledger.data.BudgetCycle
 import com.myapp.feature.ledger.data.BudgetRepository
+import com.myapp.feature.ledger.data.LedgerPrefsStore
 import com.myapp.feature.ledger.data.LedgerRepository
 import com.myapp.feature.ledger.data.LedgerSaveEvents
 import com.myapp.feature.ledger.data.Transaction
+import com.myapp.feature.ledger.notification.AutoLedgerNotifier
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
@@ -33,6 +35,8 @@ class LedgerListViewModel @Inject constructor(
     private val repository: LedgerRepository,
     private val budgetRepository: BudgetRepository,
     private val saveEvents: LedgerSaveEvents,
+    private val prefs: LedgerPrefsStore,
+    private val notifier: AutoLedgerNotifier,
 ) : ViewModel() {
 
     init {
@@ -43,19 +47,32 @@ class LedgerListViewModel @Inject constructor(
     }
 
     /**
-     * 列表数据流：交易 + 当前预算组合。预算也带在 state 里，
-     * 这样保存后 Snackbar 算「本期剩余」时直接读 state 不用再查一次。
+     * 列表数据流：交易 + 当前预算 + 未识别条数组合。预算带在 state 里，
+     * 保存后 Snackbar 算「本期剩余」时直接读 state 不用再查一次。
      */
     val state: StateFlow<ListUiState> = combine(
         repository.observeAll(),
         budgetRepository.observeCurrent(),
-    ) { transactions, budget ->
-        ListUiState(transactions = transactions, budget = budget)
+        prefs.unrecognized,
+    ) { transactions, budget, unrecognized ->
+        ListUiState(
+            transactions = transactions,
+            budget = budget,
+            unrecognizedCount = unrecognized.size,
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = ListUiState(),
     )
+
+    /** 一键确认：不改任何字段，仅 PENDING → CONFIRMED，并撤掉对应通知。 */
+    fun confirm(id: Long) {
+        viewModelScope.launch {
+            repository.confirm(id)
+            notifier.cancel(id)
+        }
+    }
 
     private val _savedEvents = Channel<SavedEvent>(Channel.BUFFERED)
     val savedEvents: Flow<SavedEvent> = _savedEvents.receiveAsFlow()
@@ -85,6 +102,7 @@ class LedgerListViewModel @Inject constructor(
 data class ListUiState(
     val transactions: List<Transaction> = emptyList(),
     val budget: Budget? = null,
+    val unrecognizedCount: Int = 0,
 )
 
 /** 把 epochMilli 按本地日期分组，保留倒序。 */

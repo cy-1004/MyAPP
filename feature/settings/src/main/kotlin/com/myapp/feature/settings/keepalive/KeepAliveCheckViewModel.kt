@@ -70,7 +70,7 @@ class KeepAliveCheckViewModel @Inject constructor(
             add(autoBattery())
             add(autoNotification())
             add(readonlyExactAlarm())
-            add(textOnlyNotificationListener())
+            add(autoNotificationListener())
             add(manualAutostart().copy(manualDone = KeepAliveCheckIds.AUTOSTART in done))
             add(manualBackground().copy(manualDone = KeepAliveCheckIds.BACKGROUND in done))
             add(manualLockTask().copy(manualDone = KeepAliveCheckIds.LOCK_TASK in done))
@@ -95,6 +95,8 @@ class KeepAliveCheckViewModel @Inject constructor(
                 Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
                     putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
                 }
+            KeepAliveCheckIds.NOTIFICATION_LISTENER ->
+                Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
             else -> return
         }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -182,12 +184,17 @@ class KeepAliveCheckViewModel @Inject constructor(
         },
     )
 
-    private fun textOnlyNotificationListener() = KeepAliveCheckItem(
+    private fun autoNotificationListener() = KeepAliveCheckItem(
         id = KeepAliveCheckIds.NOTIFICATION_LISTENER,
         title = "通知使用权",
-        description = "记账功能（M5）上线后需在此开启，当前功能未上线",
-        category = KeepAliveCheckItem.Category.TEXTONLY,
-        status = KeepAliveCheckItem.Status.INFO,
+        description = "支付通知自动记账需要在此开启监听能力",
+        category = KeepAliveCheckItem.Category.AUTO,
+        status = if (statusChecker.isNotificationListenerEnabled()) {
+            KeepAliveCheckItem.Status.PASSED
+        } else {
+            KeepAliveCheckItem.Status.NOT_PASSED
+        },
+        actionLabel = "去开启",
     )
 
     private fun manualAutostart() = KeepAliveCheckItem(

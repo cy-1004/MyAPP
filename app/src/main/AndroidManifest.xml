@@ -78,15 +78,8 @@
         </receiver>
 
         <!--
-          自动记账的通知监听服务（PRD 3.6）。feature:ledger 落地后启用。
-        <service
-            android:name="com.myapp.feature.ledger.notification.PaymentNotificationListener"
-            android:exported="false"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-        </service>
+          自动记账的通知监听服务已声明在 :feature:ledger 的 manifest 里（PRD 3.6.1），
+          监听能力是记账模块自己的东西，:app 不声明。
         -->
 
         <!-- WorkManager 用 Hilt 自定义工厂初始化，关掉默认初始化器 -->

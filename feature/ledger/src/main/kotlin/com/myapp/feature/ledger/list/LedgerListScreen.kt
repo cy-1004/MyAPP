@@ -9,21 +9,27 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -56,6 +62,7 @@ import com.myapp.core.designsystem.theme.appColors
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.ledger.data.Transaction
 import com.myapp.feature.ledger.data.TransactionDirection
+import com.myapp.feature.ledger.data.TransactionStatus
 import com.myapp.feature.ledger.data.parseAmountCents
 import com.myapp.feature.ledger.ui.categoryColor
 import com.myapp.feature.ledger.ui.categoryIcon
@@ -126,7 +133,8 @@ fun LedgerListScreen(
             }
         },
     ) { innerPadding ->
-        if (state.transactions.isEmpty()) {
+        val groups = groupByDate(state.transactions)
+        if (state.transactions.isEmpty() && state.unrecognizedCount == 0) {
             EmptyState(
                 text = "还没有记账记录",
                 modifier = Modifier.padding(innerPadding),
@@ -134,7 +142,6 @@ fun LedgerListScreen(
                 onAction = { onNavigate(Route.LedgerDetail()) },
             )
         } else {
-            val groups = groupByDate(state.transactions)
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -147,6 +154,14 @@ fun LedgerListScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
+                if (state.unrecognizedCount > 0) {
+                    item(key = "unrecognized") {
+                        UnrecognizedCard(
+                            count = state.unrecognizedCount,
+                            onClick = { onNavigate(Route.LedgerUnrecognized) },
+                        )
+                    }
+                }
                 groups.forEach { group ->
                     item(key = "header-${group.date}") {
                         DateHeader(date = group.date, items = group.items)
@@ -155,6 +170,7 @@ fun LedgerListScreen(
                         TransactionRow(
                             transaction = tx,
                             onClick = { onNavigate(Route.LedgerDetail(tx.id)) },
+                            onConfirm = { viewModel.confirm(tx.id) },
                         )
                     }
                 }
@@ -210,8 +226,10 @@ private fun DateHeader(date: java.time.LocalDate, items: List<Transaction>) {
 private fun TransactionRow(
     transaction: Transaction,
     onClick: () -> Unit,
+    onConfirm: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    val isPending = transaction.status == TransactionStatus.PENDING
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -240,12 +258,26 @@ private fun TransactionRow(
         }
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = transaction.merchant?.takeIf { it.isNotBlank() }
-                    ?: transaction.categoryName,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = transaction.merchant?.takeIf { it.isNotBlank() }
+                        ?: transaction.categoryName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (isPending) {
+                    Spacer(modifier = Modifier.size(Spacing.xs))
+                    Text(
+                        text = "待确认",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.appColors.warning,
+                        modifier = Modifier
+                            .clip(MaterialTheme.shapes.extraSmall)
+                            .background(MaterialTheme.appColors.warning.copy(alpha = 0.12f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
             val timeText = with(AppTime) {
                 transaction.occurredAt.toLocalDateTime().toLocalTime()
                     .format(AppFormatters.time)
@@ -261,17 +293,59 @@ private fun TransactionRow(
             )
         }
 
-        val amountText = transaction.amountCents.yuanWithSymbol()
-        val isExpense = transaction.direction == TransactionDirection.EXPENSE
-        Text(
-            text = if (isExpense) "-$amountText" else "+$amountText",
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
-            color = if (isExpense) {
-                MaterialTheme.colorScheme.onSurface
-            } else {
-                MaterialTheme.appColors.success
-            },
-        )
+        Column(horizontalAlignment = Alignment.End) {
+            val amountText = transaction.amountCents.yuanWithSymbol()
+            val isExpense = transaction.direction == TransactionDirection.EXPENSE
+            Text(
+                text = if (isExpense) "-$amountText" else "+$amountText",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                color = if (isExpense) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.appColors.success
+                },
+            )
+            if (isPending && onConfirm != null) {
+                Spacer(modifier = Modifier.size(Spacing.xs))
+                OutlinedButton(
+                    onClick = onConfirm,
+                    contentPadding = PaddingValues(horizontal = Spacing.md, vertical = 0.dp),
+                    modifier = Modifier.height(28.dp),
+                ) {
+                    Text("确认", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnrecognizedCard(count: Int, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.appColors.warning.copy(alpha = 0.12f),
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(Spacing.lg),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = "有 $count 条未识别的支付通知",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.appColors.warning,
+            )
+            Text(
+                text = "查看并补录 →",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.appColors.warning,
+            )
+        }
     }
 }
 

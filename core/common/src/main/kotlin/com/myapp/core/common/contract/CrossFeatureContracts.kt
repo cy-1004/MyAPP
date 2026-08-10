@@ -18,12 +18,16 @@ interface NoteWriter {
 
 /** 记一笔账。由 :feature:ledger 实现，供快捷入口、小组件、通知解析调用。 */
 interface LedgerWriter {
+    /**
+     * @param direction 'EXPENSE' / 'INCOME'，默认支出。自动记账解析收款通知时传 'INCOME'。
+     */
     suspend fun recordExpense(
         amountCents: Long,
         merchant: String?,
         category: String?,
         occurredAt: Long,
         raw: String? = null,
+        direction: String = "EXPENSE",
     ): Long
 }
 

@@ -70,6 +70,10 @@ sealed interface Route {
     @Serializable
     data class LedgerDetail(val id: Long = 0L) : Route
 
+    /** 自动记账未识别队列（PRD 3.6.1 兜底）。 */
+    @Serializable
+    data object LedgerUnrecognized : Route
+
     @Serializable
     data object Budget : Route
 

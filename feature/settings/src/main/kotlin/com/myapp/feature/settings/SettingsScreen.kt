@@ -3,6 +3,7 @@ package com.myapp.feature.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,16 +20,23 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
 import com.myapp.core.ui.navigation.Route
 
 /**
- * 设置首页（PRD 9.3）：保活自检入口。
+ * 设置首页（PRD 9.3）：保活自检入口 + 自动记账开关。
  *
  * 其余设置项（外观/关于）暂为占位，后续功能落地时填充。
  */
@@ -38,7 +46,17 @@ fun SettingsScreen(
     onNavigate: (Route) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: SettingsViewModel = hiltViewModel(),
 ) {
+    // 用户从系统设置返回后需要刷新状态；自增计数触发重组（VM 属性是冷读 getter）
+    var refreshTick by remember { mutableIntStateOf(0) }
+    LifecycleResumeEffect(Unit) {
+        refreshTick++
+        onPauseOrDispose { }
+    }
+
+    val listenerOn = viewModel.notificationListenerEnabled
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -57,6 +75,18 @@ fun SettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
+            item(key = "auto_ledger") {
+                SettingsItem(
+                    title = "自动记账",
+                    description = if (listenerOn) {
+                        "已开启：支付通知自动记一笔，点击查看或关闭"
+                    } else {
+                        "支付通知自动记一笔，需先开启通知使用权"
+                    },
+                    enabled = true,
+                    onClick = { viewModel.openNotificationListenerSettings() },
+                )
+            }
             item(key = "keepalive") {
                 SettingsItem(
                     title = "保活自检",

@@ -7,7 +7,7 @@ package com.myapp.feature.settings.keepalive
  * - [Category.AUTO]：有 API 检测 + 有系统设置跳转（电池白名单、通知权限）
  * - [Category.READONLY]：有 API 检测但恒通过，只读展示（精确闹钟，USE_EXACT_ALARM 安装即授予）
  * - [Category.MANUAL]：无 API 检测，靠用户勾选确认（自启动、后台活动、锁定后台任务）
- * - [Category.TEXTONLY]：不检测不跳转，纯文字说明（通知使用权，功能未上线）
+ * - [Category.TEXTONLY]：不检测不跳转，纯文字说明（当前无用例）
  */
 data class KeepAliveCheckItem(
     val id: String,

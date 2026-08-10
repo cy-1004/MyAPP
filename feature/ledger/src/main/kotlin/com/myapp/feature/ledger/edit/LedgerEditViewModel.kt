@@ -9,6 +9,8 @@ import com.myapp.feature.ledger.data.Category
 import com.myapp.feature.ledger.data.LedgerRepository
 import com.myapp.feature.ledger.data.TransactionDraft
 import com.myapp.feature.ledger.data.parseAmountCents
+import com.myapp.feature.ledger.notification.AutoCategorizer
+import com.myapp.feature.ledger.notification.AutoLedgerNotifier
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
@@ -30,6 +32,8 @@ sealed interface LedgerEditResult {
 @HiltViewModel
 class LedgerEditViewModel @Inject constructor(
     private val repository: LedgerRepository,
+    private val categorizer: AutoCategorizer,
+    private val notifier: AutoLedgerNotifier,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -88,6 +92,15 @@ class LedgerEditViewModel @Inject constructor(
         val amount = parseAmountCents(current.amountText) ?: return
         viewModelScope.launch {
             repository.save(current)
+            if (current.wasPending) {
+                // 确认自动记账条目：记住商户→分类（下次同商户直接命中）+ 撤掉结果通知
+                val merchant = current.merchant.trim().ifBlank { null }
+                val categoryName = categories.value.firstOrNull { it.id == current.categoryId }?.name
+                if (merchant != null && categoryName != null) {
+                    categorizer.learn(merchant, categoryName)
+                }
+                notifier.cancel(current.id)
+            }
             _results.send(LedgerEditResult.Saved(amount))
         }
     }
@@ -96,6 +109,7 @@ class LedgerEditViewModel @Inject constructor(
         val id = _draft.value.id
         if (id == 0L) return
         viewModelScope.launch {
+            if (_draft.value.wasPending) notifier.cancel(id)
             repository.delete(id)
             _results.send(LedgerEditResult.Deleted)
         }

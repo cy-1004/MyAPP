@@ -6,9 +6,11 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.myapp.core.ui.navigation.Route
+import com.myapp.feature.ledger.data.LedgerDeepLink
 import com.myapp.feature.ledger.data.LedgerSaveEvents
 import com.myapp.feature.ledger.edit.LedgerEditScreen
 import com.myapp.feature.ledger.list.LedgerListScreen
+import com.myapp.feature.ledger.unrecognized.UnrecognizedScreen
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -30,6 +32,9 @@ import dagger.hilt.components.SingletonComponent
 @InstallIn(SingletonComponent::class)
 interface LedgerGraphEntryPoint {
     fun ledgerSaveEvents(): LedgerSaveEvents
+
+    /** 系统通知 → 确认页深链。MainActivity 写入，MyApp 收集后导航。 */
+    fun ledgerDeepLink(): LedgerDeepLink
 }
 
 fun NavGraphBuilder.ledgerGraph(
@@ -60,5 +65,9 @@ fun NavGraphBuilder.ledgerGraph(
                 onBack()
             },
         )
+    }
+
+    composable<Route.LedgerUnrecognized> {
+        UnrecognizedScreen(onBack = onBack)
     }
 }
