@@ -2,6 +2,8 @@ package com.myapp.core.designsystem.component
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -32,7 +34,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.myapp.core.designsystem.theme.LocalMotionLevel
-import com.myapp.core.designsystem.theme.MotionTokens
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.hazeEffect
@@ -75,10 +76,13 @@ fun MultiActionFab(
     LaunchedEffect(expanded) {
         if (motionLevel.enableTransitions) {
             actions.forEachIndexed { index, _ ->
-                delay(index * 30L)
+                delay(index * 20L)
                 progress[index].animateTo(
                     targetValue = if (expanded) 1f else 0f,
-                    animationSpec = MotionTokens.enterSpring(),
+                    animationSpec = spring(
+                        dampingRatio = 0.7f,
+                        stiffness = Spring.StiffnessMedium,
+                    ),
                 )
             }
         } else {
