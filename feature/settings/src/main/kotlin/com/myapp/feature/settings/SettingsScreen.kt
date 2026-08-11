@@ -87,6 +87,14 @@ fun SettingsScreen(
                     onClick = { viewModel.openNotificationListenerSettings() },
                 )
             }
+            item(key = "rule_mgmt") {
+                SettingsItem(
+                    title = "规则管理",
+                    description = "自定义支付通知解析规则，让自动记账越用越准",
+                    enabled = true,
+                    onClick = { onNavigate(Route.RuleList) },
+                )
+            }
             item(key = "keepalive") {
                 SettingsItem(
                     title = "保活自检",

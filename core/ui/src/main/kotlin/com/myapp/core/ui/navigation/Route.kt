@@ -74,6 +74,18 @@ sealed interface Route {
     @Serializable
     data object LedgerUnrecognized : Route
 
+    /** 自动记账规则管理（PRD 3.6.1 Phase 3）。 */
+    @Serializable
+    data object RuleList : Route
+
+    /**
+     * 规则编辑页。
+     * - [id] 为 0 表示新建，与待办/纪念日同一套约定。
+     * - [presetUnrecognizedId] 非 0 表示从未识别队列跳来，保存成功后要把该未识别项也落账并出队。
+     */
+    @Serializable
+    data class RuleDetail(val id: Long = 0L, val presetUnrecognizedId: Long = 0L) : Route
+
     @Serializable
     data object Budget : Route
 

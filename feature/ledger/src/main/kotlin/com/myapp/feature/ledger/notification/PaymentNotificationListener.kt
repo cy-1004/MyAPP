@@ -11,10 +11,12 @@ import com.myapp.core.database.dao.TransactionDao
 import com.myapp.feature.ledger.data.BudgetRepository
 import com.myapp.feature.ledger.data.LedgerPrefsStore
 import com.myapp.feature.ledger.data.LedgerRepository
+import com.myapp.feature.ledger.data.RuleRepository
 import com.myapp.feature.ledger.data.UnrecognizedItem
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -38,6 +40,7 @@ class PaymentNotificationListener : NotificationListenerService() {
     @Inject lateinit var transactionDao: TransactionDao
     @Inject lateinit var categorizer: AutoCategorizer
     @Inject lateinit var prefs: LedgerPrefsStore
+    @Inject lateinit var ruleRepository: RuleRepository
     @Inject lateinit var notifier: AutoLedgerNotifier
     @Inject @ApplicationScope lateinit var appScope: CoroutineScope
 
@@ -79,7 +82,7 @@ class PaymentNotificationListener : NotificationListenerService() {
         val duplicate = transactionDao.getPendingByRawText(raw, now - DEDUPE_WINDOW_MILLIS)
         if (duplicate != null) return
 
-        when (val result = PaymentParser.parse(channel, title, text)) {
+        when (val result = PaymentParser.parse(channel, title, text, ruleRepository.activeRules.first())) {
             is PaymentParseResult.Success -> {
                 val category = categorizer.categorize(result.merchant)
                 val id = ledgerWriter.recordExpense(

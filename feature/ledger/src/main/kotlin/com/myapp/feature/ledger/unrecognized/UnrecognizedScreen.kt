@@ -50,6 +50,7 @@ import com.myapp.core.common.time.AppTime
 import com.myapp.core.designsystem.component.EmptyState
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
+import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.ledger.data.UnrecognizedItem
 import com.myapp.feature.ledger.data.parseAmountCents
 
@@ -62,6 +63,7 @@ import com.myapp.feature.ledger.data.parseAmountCents
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnrecognizedScreen(
+    onNavigate: (Route) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: UnrecognizedViewModel = hiltViewModel(),
@@ -108,6 +110,7 @@ fun UnrecognizedScreen(
                         item = item,
                         onRecord = { recordingItem = item },
                         onDismiss = { viewModel.dismiss(item.id) },
+                        onSaveAsRule = { onNavigate(Route.RuleDetail(presetUnrecognizedId = item.id)) },
                     )
                 }
             }
@@ -131,6 +134,7 @@ private fun UnrecognizedRow(
     item: UnrecognizedItem,
     onRecord: () -> Unit,
     onDismiss: () -> Unit,
+    onSaveAsRule: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -171,9 +175,18 @@ private fun UnrecognizedRow(
                     Text("忽略", color = MaterialTheme.appColors.textTertiary)
                 }
                 OutlinedButton(
-                    onClick = onRecord,
+                    onClick = onSaveAsRule,
                     contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = 0.dp),
                     modifier = Modifier.height(32.dp),
+                ) {
+                    Text("存为规则")
+                }
+                OutlinedButton(
+                    onClick = onRecord,
+                    contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = 0.dp),
+                    modifier = Modifier
+                        .height(32.dp)
+                        .padding(start = Spacing.sm),
                 ) {
                     Text("补录")
                 }

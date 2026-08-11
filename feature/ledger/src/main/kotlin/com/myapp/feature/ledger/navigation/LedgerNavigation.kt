@@ -10,6 +10,8 @@ import com.myapp.feature.ledger.data.LedgerDeepLink
 import com.myapp.feature.ledger.data.LedgerSaveEvents
 import com.myapp.feature.ledger.edit.LedgerEditScreen
 import com.myapp.feature.ledger.list.LedgerListScreen
+import com.myapp.feature.ledger.rule.RuleDetailScreen
+import com.myapp.feature.ledger.rule.RuleListScreen
 import com.myapp.feature.ledger.unrecognized.UnrecognizedScreen
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -68,6 +70,14 @@ fun NavGraphBuilder.ledgerGraph(
     }
 
     composable<Route.LedgerUnrecognized> {
-        UnrecognizedScreen(onBack = onBack)
+        UnrecognizedScreen(onNavigate = onNavigate, onBack = onBack)
+    }
+
+    composable<Route.RuleList> {
+        RuleListScreen(onNavigate = onNavigate, onBack = onBack)
+    }
+
+    composable<Route.RuleDetail> {
+        RuleDetailScreen(onBack = onBack)
     }
 }
