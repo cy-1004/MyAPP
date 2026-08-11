@@ -133,12 +133,21 @@ fun MyApp(initialRoute: Route) {
                     selectedIndex = TopLevelDestination.entries.indexOf(topLevelDest),
                     onItemClick = { index ->
                         val dest = TopLevelDestination.entries[index]
-                        navController.navigate(dest.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
+                        if (dest.route == Route.Home) {
+                            // Home 是 startDestination，已在栈底。
+                            // 用 navigate + launchSingleTop + restoreState 会让 navController
+                            // 认为"目标已在栈里"，整个 navigate 变 no-op，连 popUpTo 都不执行，
+                            // 上面的 Ledger/Todo 等页面弹不掉——实测从任何顶级页点主页都卡住。
+                            // 改用 popBackStack 直接弹回 Home，行为确定。
+                            navController.popBackStack(Route.Home, inclusive = false)
+                        } else {
+                            navController.navigate(dest.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
                             }
-                            launchSingleTop = true
-                            restoreState = true
                         }
                     },
                     hazeState = hazeState,

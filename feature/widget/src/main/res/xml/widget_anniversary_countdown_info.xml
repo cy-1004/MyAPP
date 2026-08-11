@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- W4 纪念日倒数：2×2。configure 指向选择「盯哪一条」的配置页 -->
+<!-- widgetFeatures=reconfigurable：Android 12+ 长按小组件出现「重新配置」入口 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="com.myapp.feature.widget.anniversary.AnniversaryConfigActivity"
     android:description="@string/widget_anniversary_countdown_desc"
@@ -10,4 +11,5 @@
     android:targetCellWidth="2"
     android:targetCellHeight="2"
     android:updatePeriodMillis="1800000"
-    android:widgetCategory="home_screen" />
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable" />

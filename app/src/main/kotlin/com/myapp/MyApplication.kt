@@ -3,6 +3,7 @@ package com.myapp
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.myapp.feature.widget.WidgetAlarmReceiver
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -23,4 +24,12 @@ class MyApplication : Application(), Configuration.Provider {
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
+
+    override fun onCreate() {
+        super.onCreate()
+        // 进程启动时排跨天闹钟。之前只在 BootCompletedReceiver 和 onReceive 自续期排，
+        // 首次安装且未重启手机时闹钟永远不会被排（PRD 3.10 兜底链断裂）。
+        // 幂等：覆盖同一个 PendingIntent，重复调用无副作用。
+        WidgetAlarmReceiver.scheduleMidnightAlarm(this)
+    }
 }

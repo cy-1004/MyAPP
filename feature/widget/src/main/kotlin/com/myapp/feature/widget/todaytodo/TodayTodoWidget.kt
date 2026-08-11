@@ -106,6 +106,7 @@ private fun Header(palette: WidgetPalette, undoneCount: Int) {
 
 @Composable
 private fun EmptyState(palette: WidgetPalette, doneToday: Int, modifier: GlanceModifier) {
+    val context = LocalContext.current
     val allDone = doneToday > 0
     Text(
         text = if (allDone) "全部完成" else "今天没有安排",
@@ -113,7 +114,12 @@ private fun EmptyState(palette: WidgetPalette, doneToday: Int, modifier: GlanceM
             color = ColorProvider(if (allDone) palette.success else palette.textSecondary),
             textAlign = TextAlign.Center,
         ),
-        modifier = modifier.fillMaxWidth().padding(top = 10.dp),
+        // 空态区域也要可点击跳到待办页：之前只有 Header 有 clickable，
+        // 用户点中间空白区没反应（真机实测）
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp)
+            .clickable(WidgetIntents.openScreenAction(context, WidgetScreens.TODO)),
     )
 }
 
