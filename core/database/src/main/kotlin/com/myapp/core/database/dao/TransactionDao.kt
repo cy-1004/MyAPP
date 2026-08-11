@@ -29,8 +29,28 @@ data class TransactionWithCategory(
     val note: String?,
 )
 
+/** 某个分类下的账目笔数（GROUP BY 投影）。分类管理页展示「N 笔账目」用。 */
+data class CategoryUsage(
+    val categoryId: Long,
+    val count: Int,
+)
+
 @Dao
 interface TransactionDao {
+
+    /**
+     * 各分类的账目笔数（未删除的账目）。分类管理页用它提示停用/删除会影响多少笔历史账目。
+     * 没有账目的分类不会出现在结果里，调用方按 id 查 map 时用 0 兜底。
+     */
+    @Query(
+        """
+        SELECT category_id AS categoryId, COUNT(*) AS count
+        FROM transaction_record
+        WHERE deleted_at IS NULL
+        GROUP BY category_id
+        """,
+    )
+    fun observeCountByCategory(): Flow<List<CategoryUsage>>
 
     /**
      * 区间内未删除条目，按发生时间倒序。[endExclusive] 不含。

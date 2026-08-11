@@ -65,17 +65,15 @@ class LedgerPrefsStore @Inject constructor(
     // ---- 商户 → 分类 学习映射（用户改过一次分类后记住）----
 
     val merchantCategoryMap: Flow<Map<String, String>> = store.data.map { prefs ->
-        val raw = prefs[Keys.MERCHANT_CATEGORY_MAP] ?: return@map emptyMap()
-        runCatching { Json.decodeFromString<Map<String, String>>(raw) }.getOrDefault(emptyMap())
+        decodeMerchantMap(prefs[Keys.MERCHANT_CATEGORY_MAP])
     }
 
     suspend fun learnMerchantCategory(merchant: String, categoryName: String) {
         if (merchant.isBlank() || categoryName.isBlank()) return
         store.edit { prefs ->
-            val raw = prefs[Keys.MERCHANT_CATEGORY_MAP] ?: return@edit
-            val map = runCatching { Json.decodeFromString<Map<String, String>>(raw) }
-                .getOrDefault(emptyMap())
-                .toMutableMap()
+            // 注意别写成 `?: return@edit`：第一次学习时这个 key 还不存在，
+            // 提前返回会让映射表永远建不起来（学习功能整体静默失效）
+            val map = decodeMerchantMap(prefs[Keys.MERCHANT_CATEGORY_MAP]).toMutableMap()
             map[merchant] = categoryName
             // 防无限膨胀：超过 200 条丢最旧的（LinkedHashMap 保持插入序）
             while (map.size > MAX_LEARNED_ENTRIES) {
@@ -83,6 +81,28 @@ class LedgerPrefsStore @Inject constructor(
             }
             prefs[Keys.MERCHANT_CATEGORY_MAP] = Json.encodeToString(map)
         }
+    }
+
+    /**
+     * 分类改名后同步学习映射的 value。
+     *
+     * 映射表存的是分类**名**不是 id（recordExpense 契约按名查库），改名不同步的话
+     * 自动记账会按旧名查不到分类，静默落到「未分类」——用户只会觉得「学习功能失灵了」。
+     */
+    suspend fun renameLearnedCategory(oldName: String, newName: String) {
+        if (oldName.isBlank() || newName.isBlank() || oldName == newName) return
+        store.edit { prefs ->
+            val map = decodeMerchantMap(prefs[Keys.MERCHANT_CATEGORY_MAP])
+            if (map.values.none { it == oldName }) return@edit
+            val renamed = map.mapValues { (_, value) -> if (value == oldName) newName else value }
+            prefs[Keys.MERCHANT_CATEGORY_MAP] = Json.encodeToString(renamed)
+        }
+    }
+
+    private fun decodeMerchantMap(raw: String?): Map<String, String> {
+        if (raw == null) return emptyMap()
+        return runCatching { Json.decodeFromString<Map<String, String>>(raw) }
+            .getOrDefault(emptyMap())
     }
 
     private fun decodeList(raw: String): List<UnrecognizedItem> =

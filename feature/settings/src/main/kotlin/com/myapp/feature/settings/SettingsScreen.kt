@@ -95,6 +95,14 @@ fun SettingsScreen(
                     onClick = { onNavigate(Route.RuleList) },
                 )
             }
+            item(key = "category_mgmt") {
+                SettingsItem(
+                    title = "分类管理",
+                    description = "增删改记账分类、调整顺序、停用不用的分类",
+                    enabled = true,
+                    onClick = { onNavigate(Route.CategoryList) },
+                )
+            }
             item(key = "keepalive") {
                 SettingsItem(
                     title = "保活自检",

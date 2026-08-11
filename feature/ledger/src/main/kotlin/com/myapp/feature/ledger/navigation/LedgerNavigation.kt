@@ -6,6 +6,8 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.myapp.core.ui.navigation.Route
+import com.myapp.feature.ledger.category.CategoryDetailScreen
+import com.myapp.feature.ledger.category.CategoryListScreen
 import com.myapp.feature.ledger.data.LedgerDeepLink
 import com.myapp.feature.ledger.data.LedgerSaveEvents
 import com.myapp.feature.ledger.edit.LedgerEditScreen
@@ -79,5 +81,13 @@ fun NavGraphBuilder.ledgerGraph(
 
     composable<Route.RuleDetail> {
         RuleDetailScreen(onBack = onBack)
+    }
+
+    composable<Route.CategoryList> {
+        CategoryListScreen(onNavigate = onNavigate, onBack = onBack)
+    }
+
+    composable<Route.CategoryDetail> {
+        CategoryDetailScreen(onBack = onBack)
     }
 }

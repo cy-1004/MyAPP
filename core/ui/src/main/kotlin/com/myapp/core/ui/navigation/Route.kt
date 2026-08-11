@@ -86,6 +86,14 @@ sealed interface Route {
     @Serializable
     data class RuleDetail(val id: Long = 0L, val presetUnrecognizedId: Long = 0L) : Route
 
+    /** 记账分类管理（PRD 3.6 M5 Phase 3）。 */
+    @Serializable
+    data object CategoryList : Route
+
+    /** 分类编辑页。id 为 0 表示新建，与待办/规则同一套约定。 */
+    @Serializable
+    data class CategoryDetail(val id: Long = 0L) : Route
+
     @Serializable
     data object Budget : Route
 

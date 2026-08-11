@@ -2,11 +2,21 @@ package com.myapp.feature.ledger.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Checkroom
+import androidx.compose.material.icons.outlined.ChildCare
+import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.Flight
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.LocalCafe
 import androidx.compose.material.icons.outlined.LocalHospital
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.Pets
+import androidx.compose.material.icons.outlined.PhoneIphone
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.ShoppingBag
@@ -31,8 +41,37 @@ fun categoryIcon(iconKey: String): ImageVector = when (iconKey) {
     "study" -> Icons.Outlined.School
     "other" -> Icons.Outlined.Category
     "uncategorized" -> Icons.AutoMirrored.Outlined.HelpOutline
+    // 以下是分类管理页（Phase 3）给自建分类用的，种子里没有
+    "coffee" -> Icons.Outlined.LocalCafe
+    "travel" -> Icons.Outlined.Flight
+    "fitness" -> Icons.Outlined.FitnessCenter
+    "pet" -> Icons.Outlined.Pets
+    "clothes" -> Icons.Outlined.Checkroom
+    "phone" -> Icons.Outlined.PhoneIphone
+    "salary" -> Icons.Outlined.Payments
+    "invest" -> Icons.AutoMirrored.Outlined.TrendingUp
+    "child" -> Icons.Outlined.ChildCare
+    "beauty" -> Icons.Outlined.ContentCut
     else -> Icons.AutoMirrored.Outlined.HelpOutline
 }
+
+/**
+ * 分类编辑页图标选择器的候选 key，顺序即展示顺序。
+ *
+ * 不含 `uncategorized`：那是「未分类」保留项专用的语义图标，
+ * 让用户给自建分类选它只会造成混淆。
+ */
+val selectableCategoryIcons: List<String> = listOf(
+    "food", "coffee", "transport", "travel", "shopping", "clothes",
+    "entertainment", "fitness", "housing", "phone", "medical", "beauty",
+    "gift", "child", "pet", "study", "salary", "invest", "other",
+)
+
+/** 分类编辑页颜色选择器的候选 key，与 [categoryColor] 的映射表一一对应。 */
+val selectableCategoryColors: List<String> = listOf(
+    "clay", "mistBlue", "mustard", "lotus", "pineGreen",
+    "ochre", "olive", "taupe", "neutralGray", "lightGray",
+)
 
 /**
  * 分类颜色 key -> Color 映射（PRD 5.1 莫兰迪色板）。

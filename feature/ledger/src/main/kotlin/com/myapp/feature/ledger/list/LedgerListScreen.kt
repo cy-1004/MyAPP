@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -113,6 +114,10 @@ fun LedgerListScreen(
             TopAppBar(
                 title = { Text("记账", style = MaterialTheme.typography.titleLarge) },
                 actions = {
+                    // 分类管理在设置页也有入口，这里放一份是因为改分类多半是记账时才想起来的
+                    IconButton(onClick = { onNavigate(Route.CategoryList) }) {
+                        Icon(Icons.Outlined.Category, contentDescription = "分类管理")
+                    }
                     IconButton(onClick = { showBudgetDialog = true }) {
                         Icon(Icons.Outlined.Settings, contentDescription = "预算设置")
                     }
