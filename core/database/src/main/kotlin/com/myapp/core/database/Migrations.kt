@@ -303,6 +303,58 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
     }
 }
 
+/**
+ * M8 RSS 资讯（PRD 3.9）：新增 `rss_source`/`rss_article` 两张表。
+ * 不需要 FTS——PRD 没有要求 RSS 正文全文搜索（只有列表筛选：全部/分组/未读/收藏）。
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `rss_source` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`uuid` TEXT NOT NULL, " +
+                "`url` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`group_name` TEXT NOT NULL, " +
+                "`enabled` INTEGER NOT NULL, " +
+                "`sort_order` INTEGER NOT NULL, " +
+                "`last_fetch_at` INTEGER, " +
+                "`created_at` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL, " +
+                "`deleted_at` INTEGER)",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_rss_source_uuid` ON `rss_source` (`uuid`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_rss_source_sort_order` ON `rss_source` (`sort_order`)")
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `rss_article` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`source_id` INTEGER NOT NULL, " +
+                "`guid` TEXT NOT NULL, " +
+                "`link` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`summary` TEXT NOT NULL, " +
+                "`content` TEXT, " +
+                "`cover_image_url` TEXT, " +
+                "`published_at` INTEGER NOT NULL, " +
+                "`fetched_at` INTEGER NOT NULL, " +
+                "`is_read` INTEGER NOT NULL, " +
+                "`is_favorite` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_rss_article_source_id_guid` " +
+                "ON `rss_article` (`source_id`, `guid`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_rss_article_published_at` ON `rss_article` (`published_at`)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_rss_article_is_read` ON `rss_article` (`is_read`)")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_rss_article_is_favorite` ON `rss_article` (`is_favorite`)",
+        )
+    }
+}
+
 /** 注册到 Room 的全部迁移。新增迁移后记得加进这个数组。 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_1_2,
@@ -311,4 +363,5 @@ val ALL_MIGRATIONS = arrayOf(
     MIGRATION_4_5,
     MIGRATION_5_6,
     MIGRATION_6_7,
+    MIGRATION_7_8,
 )

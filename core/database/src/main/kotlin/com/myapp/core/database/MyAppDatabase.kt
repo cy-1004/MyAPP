@@ -11,6 +11,8 @@ import com.myapp.core.database.dao.KnowledgeSourceDao
 import com.myapp.core.database.dao.NoteDao
 import com.myapp.core.database.dao.PeriodDao
 import com.myapp.core.database.dao.QuestionDao
+import com.myapp.core.database.dao.RssArticleDao
+import com.myapp.core.database.dao.RssSourceDao
 import com.myapp.core.database.dao.TodoDao
 import com.myapp.core.database.dao.TransactionDao
 import com.myapp.core.database.model.AnniversaryEntity
@@ -24,6 +26,8 @@ import com.myapp.core.database.model.NoteFtsEntity
 import com.myapp.core.database.model.PeriodRecordEntity
 import com.myapp.core.database.model.QuestionEntity
 import com.myapp.core.database.model.QuestionFtsEntity
+import com.myapp.core.database.model.RssArticleEntity
+import com.myapp.core.database.model.RssSourceEntity
 import com.myapp.core.database.model.TodoEntity
 import com.myapp.core.database.model.TransactionEntity
 
@@ -61,12 +65,14 @@ import com.myapp.core.database.model.TransactionEntity
         KnowledgeSourceEntity::class,
         KnowledgeContentEntity::class,
         KnowledgeContentFtsEntity::class,
+        // M8 RSS 资讯（PRD 3.9）：
+        RssSourceEntity::class,
+        RssArticleEntity::class,
         // 后续按 PRD 交付计划逐个加入：
         // BudgetCategoryEntity, MerchantCategoryMapEntity, ParseRuleEntity,
         // KnowledgeReviewEntity（M7 每日知识推送）,
-        // RssFeedEntity, RssArticleEntity,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -81,6 +87,8 @@ abstract class MyAppDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
     abstract fun knowledgeSourceDao(): KnowledgeSourceDao
     abstract fun knowledgeContentDao(): KnowledgeContentDao
+    abstract fun rssSourceDao(): RssSourceDao
+    abstract fun rssArticleDao(): RssArticleDao
 }
 
 internal const val DATABASE_NAME = "myapp.db"

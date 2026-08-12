@@ -24,6 +24,7 @@ activityCompose = "1.10.1"
 lifecycle = "2.8.7"
 navigationCompose = "2.8.9"
 splashscreen = "1.0.1"
+browser = "1.8.0"
 
 # --- Compose ---
 composeBom = "2025.04.00"
@@ -73,6 +74,7 @@ benchmarkMacro = "1.3.4"
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
+androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 
 # --- Lifecycle ---
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }

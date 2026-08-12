@@ -101,8 +101,31 @@ sealed interface Route {
     @Serializable
     data object Statistics : Route
 
+    /**
+     * 底部导航「知识」tab 的落地页：内部用顶部子 tab 分「知识库」（M6）/「资讯」（M8 RSS）。
+     * 具体子 tab 切换是 :app 层的进程内状态，不走 NavController（避免子 tab 切换污染返回栈）。
+     */
     @Serializable
     data object Feed : Route
+
+    /**
+     * RSS 文章列表（PRD 3.9）：全部/按分组/未读/已收藏筛选。「资讯」子 tab 的落地内容，
+     * 也是首页卡片「查看更多」的跳转目标。
+     */
+    @Serializable
+    data object RssArticles : Route
+
+    /** RSS 订阅源管理列表（PRD 3.9）：增删改分组排序启停，从 [RssArticles] 顶栏入口进。 */
+    @Serializable
+    data object RssSources : Route
+
+    /** RSS 订阅源编辑页。id 为 0 表示新建，与知识源编辑同一套约定。 */
+    @Serializable
+    data class RssSourceDetail(val id: Long = 0L) : Route
+
+    /** RSS 文章详情：优先展示正文，无正文用 Custom Tabs 打开原链接（PRD 3.9）。 */
+    @Serializable
+    data class RssArticleDetail(val articleId: Long) : Route
 
     /** 知识源管理列表（PRD 3.7）。 */
     @Serializable
@@ -149,10 +172,10 @@ enum class TopLevelDestination(
     HOME(Route.Home, "首页", Icons.Filled.Home, Icons.Outlined.Home),
     RECORDS(Route.NoteList, "记录", Icons.AutoMirrored.Filled.Article, Icons.AutoMirrored.Outlined.Article),
     LEDGER(Route.Ledger, "记账", Icons.Filled.AccountBalanceWallet, Icons.Outlined.AccountBalanceWallet),
-    // 占用原「资讯」tab 位置（PRD 3.11 底部导航 5 栏结构不变）：M8 RSS 落地前，
-    // 先给 M6 知识库用；M8 落地时再决定 tab 内部怎么分（比如加个顶部子 tab）。
+    // 「资讯」tab（PRD 3.11 底部导航 5 栏结构不变）：M8 落地后内部用顶部子 tab
+    // 分「知识库」（M6）/「资讯」（M8 RSS），落地页见 Route.Feed。
     KNOWLEDGE(
-        Route.KnowledgeSources,
+        Route.Feed,
         "知识",
         Icons.AutoMirrored.Filled.MenuBook,
         Icons.AutoMirrored.Outlined.MenuBook,

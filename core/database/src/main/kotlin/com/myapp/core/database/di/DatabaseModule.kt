@@ -16,6 +16,8 @@ import com.myapp.core.database.dao.KnowledgeSourceDao
 import com.myapp.core.database.dao.NoteDao
 import com.myapp.core.database.dao.PeriodDao
 import com.myapp.core.database.dao.QuestionDao
+import com.myapp.core.database.dao.RssArticleDao
+import com.myapp.core.database.dao.RssSourceDao
 import com.myapp.core.database.dao.TodoDao
 import com.myapp.core.database.dao.TransactionDao
 import com.myapp.core.database.seed.CategorySeeder
@@ -87,4 +89,10 @@ object DatabaseModule {
 
     @Provides
     fun provideKnowledgeContentDao(db: MyAppDatabase): KnowledgeContentDao = db.knowledgeContentDao()
+
+    @Provides
+    fun provideRssSourceDao(db: MyAppDatabase): RssSourceDao = db.rssSourceDao()
+
+    @Provides
+    fun provideRssArticleDao(db: MyAppDatabase): RssArticleDao = db.rssArticleDao()
 }
