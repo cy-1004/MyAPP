@@ -45,6 +45,7 @@ class PeriodHomeCard @Inject constructor() : HomeCard {
 
     override val id: String = "period"
     override val defaultOrder: Int = HomeCardOrder.PERIOD
+    override val displayName: String = "经期"
 
     @Composable
     override fun Content(onNavigate: (Route) -> Unit) {

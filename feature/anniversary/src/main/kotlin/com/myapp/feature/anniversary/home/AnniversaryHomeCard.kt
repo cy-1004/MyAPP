@@ -44,6 +44,7 @@ class AnniversaryHomeCard @Inject constructor() : HomeCard {
 
     override val id: String = "anniversary"
     override val defaultOrder: Int = HomeCardOrder.GREETING
+    override val displayName: String = "纪念日"
 
     @Composable
     override fun Content(onNavigate: (Route) -> Unit) {

@@ -53,6 +53,20 @@ class PaymentParserTest {
     }
 
     @Test
+    fun wechat_scanPay_voucher() {
+        // 真机验证：扫码支付凭证无「向」字，商户紧跟金额之后
+        val r = parse("WECHAT", "微信支付凭证", "已支付 ¥17.90 幸福便利店")
+        assertSuccess(r, 1790, TransactionDirection.EXPENSE, "幸福便利店")
+    }
+
+    @Test
+    fun wechat_scanPay_noMerchant_fallsToGeneric() {
+        // 没有商户名时落到通用规则，商户为 null（同支付宝 alipay_pay_noMerchant_fallsToGeneric）
+        val r = parse("WECHAT", "微信支付凭证", "已支付 ¥5.00")
+        assertSuccess(r, 500, TransactionDirection.EXPENSE, null)
+    }
+
+    @Test
     fun wechat_income_incomeArrived() {
         val r = parse("WECHAT", "微信支付", "收款到账 ¥23.50")
         assertSuccess(r, 2350, TransactionDirection.INCOME, null)

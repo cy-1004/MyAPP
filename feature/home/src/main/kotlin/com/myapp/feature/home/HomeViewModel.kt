@@ -2,7 +2,9 @@ package com.myapp.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myapp.core.datastore.AppPreferences
 import com.myapp.core.ui.home.HomeCard
+import com.myapp.core.ui.home.HomeCardConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,23 +23,22 @@ import kotlinx.coroutines.flow.stateIn
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val cards: Set<@JvmSuppressWildcards HomeCard>,
+    private val appPreferences: AppPreferences,
 ) : ViewModel() {
 
     /**
-     * 按用户配置排序并过滤掉禁用项。
-     *
-     * TODO 接入 AppPreferences.homeCardConfig，支持用户自定义顺序与显隐；
-     *      当前先按 defaultOrder 排序。
+     * 按用户配置（[AppPreferences.homeCardConfig]）排序，并过滤掉用户禁用项
+     * 与卡片自身 [HomeCard.isEnabled] 判定为不可见的项。
      */
     val visibleCards: StateFlow<List<HomeCard>> = run {
-        val sorted = cards.sortedBy { it.defaultOrder }
-        val enabledFlows = sorted.map { card -> card.isEnabled() }
+        val list = cards.toList()
+        val enabledFlows = list.map { card -> card.isEnabled() }
+        val selfEnabled = if (enabledFlows.isEmpty()) flowOf(emptyList()) else combine(enabledFlows) { it.toList() }
 
-        if (enabledFlows.isEmpty()) {
-            flowOf(emptyList())
-        } else {
-            combine(enabledFlows) { flags ->
-                sorted.filterIndexed { index, _ -> flags[index] }
+        combine(appPreferences.homeCardConfig, selfEnabled) { configRaw, selfFlags ->
+            HomeCardConfig.applyOrder(list, configRaw).filter { card ->
+                val index = list.indexOf(card)
+                selfFlags[index] && HomeCardConfig.isEnabled(card.id, configRaw)
             }
         }
     }.stateIn(

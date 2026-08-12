@@ -55,6 +55,7 @@ class QuestionHomeCard @Inject constructor() : HomeCard {
 
     override val id: String = "question"
     override val defaultOrder: Int = HomeCardOrder.QUESTION
+    override val displayName: String = "待解疑问"
 
     @Composable
     override fun Content(onNavigate: (Route) -> Unit) {

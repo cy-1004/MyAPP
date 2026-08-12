@@ -35,6 +35,30 @@ data class CategoryUsage(
     val count: Int,
 )
 
+/**
+ * 某个分类在一个区间内的支出合计（GROUP BY 投影）。预算视图的分类排行用。
+ *
+ * 带上 name/icon/color 是为了一次查询直接出 UI 需要的全部字段，
+ * 免得再对每个 categoryId 回查一次分类表。
+ */
+data class CategoryExpense(
+    val categoryId: Long,
+    val categoryName: String,
+    val categoryIcon: String,
+    val categoryColor: String,
+    val totalAmount: Long,
+    val count: Int,
+)
+
+/**
+ * 某个自然月的支出合计（GROUP BY 投影）。统计页月度趋势用。
+ * [yearMonth] 形如 "2026-08"，来自 SQLite `strftime('%Y-%m', ...)`。
+ */
+data class MonthlyExpense(
+    val yearMonth: String,
+    val totalAmount: Long,
+)
+
 @Dao
 interface TransactionDao {
 
@@ -51,6 +75,52 @@ interface TransactionDao {
         """,
     )
     fun observeCountByCategory(): Flow<List<CategoryUsage>>
+
+    /**
+     * 区间内按分类汇总的**支出**（仅 EXPENSE + 未删除），金额倒序。预算视图的分类排行用。
+     *
+     * JOIN 不带 `c.deleted_at IS NULL`：分类被软删后历史账目仍要能统计进来，
+     * 否则删一个分类会让本期已花的分类明细和总额对不上（与列表页 JOIN 同口径）。
+     */
+    @Query(
+        """
+        SELECT t.category_id AS categoryId,
+               c.name AS categoryName, c.icon AS categoryIcon, c.color AS categoryColor,
+               SUM(t.amount) AS totalAmount, COUNT(*) AS count
+        FROM transaction_record t
+        INNER JOIN category c ON c.id = t.category_id
+        WHERE t.deleted_at IS NULL
+          AND t.direction = 'EXPENSE'
+          AND t.occurred_at >= :start
+          AND t.occurred_at < :endExclusive
+        GROUP BY t.category_id
+        ORDER BY totalAmount DESC
+        """,
+    )
+    fun observeCategoryExpensesInRange(start: Long, endExclusive: Long): Flow<List<CategoryExpense>>
+
+    /**
+     * 区间内按自然月汇总的**支出**（仅 EXPENSE + 未删除）。统计页月度趋势用。
+     *
+     * `strftime(..., 'localtime')`：occurred_at 存的是 UTC epochMilli，
+     * 按本地时区分月才能跟 [com.myapp.core.common.time.AppTime] 的口径对上
+     * （生产环境 AppTime.zone 恒为 systemDefault，两边天然一致）。
+     * 没有支出的月份不会出现在结果里，Repository 补零。
+     */
+    @Query(
+        """
+        SELECT strftime('%Y-%m', occurred_at / 1000, 'unixepoch', 'localtime') AS yearMonth,
+               SUM(amount) AS totalAmount
+        FROM transaction_record
+        WHERE deleted_at IS NULL
+          AND direction = 'EXPENSE'
+          AND occurred_at >= :start
+          AND occurred_at < :endExclusive
+        GROUP BY yearMonth
+        ORDER BY yearMonth ASC
+        """,
+    )
+    fun observeMonthlyExpensesInRange(start: Long, endExclusive: Long): Flow<List<MonthlyExpense>>
 
     /**
      * 区间内未删除条目，按发生时间倒序。[endExclusive] 不含。

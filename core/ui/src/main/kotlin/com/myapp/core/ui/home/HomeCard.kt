@@ -30,6 +30,9 @@ interface HomeCard {
     /** 默认顺序，数字越小越靠前。用户可在设置里覆盖。 */
     val defaultOrder: Int
 
+    /** 设置页「首页卡片排序」列表展示用的名字。 */
+    val displayName: String
+
     /** 卡片是否显示。可接功能开关或「无数据时自动隐藏」逻辑。 */
     fun isEnabled(): Flow<Boolean> = flowOf(true)
 
@@ -41,6 +44,7 @@ interface HomeCard {
 abstract class BaseHomeCard(
     override val id: String,
     override val defaultOrder: Int,
+    override val displayName: String,
 ) : HomeCard
 
 /**

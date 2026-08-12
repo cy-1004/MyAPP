@@ -97,6 +97,10 @@ sealed interface Route {
     @Serializable
     data object Budget : Route
 
+    /** 记账统计：月度支出趋势 + 分类占比（PRD 3.6.3）。 */
+    @Serializable
+    data object Statistics : Route
+
     @Serializable
     data object Feed : Route
 
@@ -109,6 +113,14 @@ sealed interface Route {
     /** 保活自检（PRD 9.3）。首启强制走一遍，后续从设置页进入。 */
     @Serializable
     data object KeepAliveCheck : Route
+
+    /** 首页卡片排序（PRD 3.11 / 4.7.2）：拖不动就用上下箭头，卡片量级小。 */
+    @Serializable
+    data object HomeCardOrder : Route
+
+    /** 经期提醒提前天数设置（PRD 3.2）。 */
+    @Serializable
+    data object PeriodReminderSettings : Route
 }
 
 /** 底部导航的一级入口。 */

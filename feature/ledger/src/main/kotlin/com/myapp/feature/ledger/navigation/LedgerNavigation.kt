@@ -6,6 +6,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.myapp.core.ui.navigation.Route
+import com.myapp.feature.ledger.budget.BudgetScreen
 import com.myapp.feature.ledger.category.CategoryDetailScreen
 import com.myapp.feature.ledger.category.CategoryListScreen
 import com.myapp.feature.ledger.data.LedgerDeepLink
@@ -14,6 +15,7 @@ import com.myapp.feature.ledger.edit.LedgerEditScreen
 import com.myapp.feature.ledger.list.LedgerListScreen
 import com.myapp.feature.ledger.rule.RuleDetailScreen
 import com.myapp.feature.ledger.rule.RuleListScreen
+import com.myapp.feature.ledger.statistics.StatisticsScreen
 import com.myapp.feature.ledger.unrecognized.UnrecognizedScreen
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -83,11 +85,19 @@ fun NavGraphBuilder.ledgerGraph(
         RuleDetailScreen(onBack = onBack)
     }
 
+    composable<Route.Budget> {
+        BudgetScreen(onBack = onBack)
+    }
+
     composable<Route.CategoryList> {
         CategoryListScreen(onNavigate = onNavigate, onBack = onBack)
     }
 
     composable<Route.CategoryDetail> {
         CategoryDetailScreen(onBack = onBack)
+    }
+
+    composable<Route.Statistics> {
+        StatisticsScreen(onBack = onBack)
     }
 }

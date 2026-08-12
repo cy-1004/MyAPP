@@ -36,6 +36,19 @@ data class Transaction(
     val note: String?,
 )
 
+/**
+ * 某分类在一个区间内的支出汇总。预算视图的分类排行用。
+ * [totalCents] 是该分类在区间内的支出合计（分），[count] 是笔数。
+ */
+data class CategoryExpenseItem(
+    val categoryId: Long,
+    val name: String,
+    val icon: String,
+    val color: String,
+    val totalCents: Long,
+    val count: Int,
+)
+
 /** 分类领域模型。 */
 data class Category(
     val id: Long,
@@ -156,6 +169,31 @@ class LedgerRepository @Inject constructor(
     /** 全部交易，按发生时间倒序。列表页用，Phase 1 不做筛选。 */
     fun observeAll(): Flow<List<Transaction>> =
         transactionDao.observeAllWithCategory().map { list -> list.map { it.toDomain() } }
+
+    /** 任意区间的支出总和（分）。预算视图用自己算好的周期区间来查。 */
+    fun observeExpenseSumInRange(start: Long, endExclusive: Long): Flow<Long> =
+        transactionDao.observeExpenseSumInRange(start, endExclusive)
+
+    /** 区间内按分类汇总的支出，金额倒序。预算视图的分类排行用。 */
+    fun observeCategoryExpenses(start: Long, endExclusive: Long): Flow<List<CategoryExpenseItem>> =
+        transactionDao.observeCategoryExpensesInRange(start, endExclusive).map { list ->
+            list.map {
+                CategoryExpenseItem(
+                    categoryId = it.categoryId,
+                    name = it.categoryName,
+                    icon = it.categoryIcon,
+                    color = it.categoryColor,
+                    totalCents = it.totalAmount,
+                    count = it.count,
+                )
+            }
+        }
+
+    /** 按自然月分组的支出合计（分），key 形如 "2026-08"。统计页月度趋势用，配合 [StatisticsInsights.fillGaps]。 */
+    fun observeMonthlyExpenses(start: Long, endExclusive: Long): Flow<Map<String, Long>> =
+        transactionDao.observeMonthlyExpensesInRange(start, endExclusive).map { list ->
+            list.associate { it.yearMonth to it.totalAmount }
+        }
 
     /** 当前预算周期内的支出总和（分）。未设预算时返回 0。 */
     fun observeCurrentCycleSpending(cycleStartDay: Int): Flow<Long> {

@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
@@ -84,7 +85,6 @@ fun LedgerListScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    var showBudgetDialog by remember { mutableStateOf(false) }
 
     // onSaved 触发的 Snackbar 事件
     LaunchedEffect(Unit) {
@@ -115,11 +115,14 @@ fun LedgerListScreen(
                 title = { Text("记账", style = MaterialTheme.typography.titleLarge) },
                 actions = {
                     // 分类管理在设置页也有入口，这里放一份是因为改分类多半是记账时才想起来的
+                    IconButton(onClick = { onNavigate(Route.Statistics) }) {
+                        Icon(Icons.Outlined.BarChart, contentDescription = "统计")
+                    }
                     IconButton(onClick = { onNavigate(Route.CategoryList) }) {
                         Icon(Icons.Outlined.Category, contentDescription = "分类管理")
                     }
-                    IconButton(onClick = { showBudgetDialog = true }) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "预算设置")
+                    IconButton(onClick = { onNavigate(Route.Budget) }) {
+                        Icon(Icons.Outlined.Settings, contentDescription = "预算")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -183,17 +186,6 @@ fun LedgerListScreen(
         }
     }
 
-    if (showBudgetDialog) {
-        BudgetDialog(
-            currentCycleStartDay = state.budget?.cycleStartDay ?: 10,
-            currentTotalYuan = state.budget?.totalAmountCents?.let { formatCentsToYuan(it) } ?: "",
-            onDismiss = { showBudgetDialog = false },
-            onConfirm = { cycleStartDay, totalCents ->
-                viewModel.setBudget(cycleStartDay, totalCents)
-                showBudgetDialog = false
-            },
-        )
-    }
 }
 
 @Composable
@@ -354,60 +346,3 @@ private fun UnrecognizedCard(count: Int, onClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun BudgetDialog(
-    currentCycleStartDay: Int,
-    currentTotalYuan: String,
-    onDismiss: () -> Unit,
-    onConfirm: (cycleStartDay: Int, totalAmountCents: Long) -> Unit,
-) {
-    var dayText by remember { mutableStateOf(currentCycleStartDay.toString()) }
-    var yuanText by remember { mutableStateOf(currentTotalYuan) }
-
-    val dayValid = dayText.toIntOrNull()?.let { it in 1..28 } == true
-    val cents = parseAmountCents(yuanText)
-    val canConfirm = dayValid && cents != null && cents > 0L
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("本期预算") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                OutlinedTextField(
-                    value = dayText,
-                    onValueChange = { dayText = it.filter(Char::isDigit).take(2) },
-                    label = { Text("发薪日（1-28）") },
-                    singleLine = true,
-                    isError = dayText.isNotEmpty() && !dayValid,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = MaterialTheme.shapes.small,
-                )
-                OutlinedTextField(
-                    value = yuanText,
-                    onValueChange = { yuanText = it.filter { ch -> ch.isDigit() || ch == '.' } },
-                    label = { Text("本期预算（元）") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = MaterialTheme.shapes.small,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(dayText.toInt(), cents!!) },
-                enabled = canConfirm,
-            ) { Text("保存") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-    )
-}
-
-/** 分转元文本（编辑用），与 LedgerRepository 同实现。 */
-private fun formatCentsToYuan(cents: Long): String {
-    val yuan = cents / 100
-    val fen = cents % 100
-    return if (fen == 0L) "$yuan"
-    else if (fen < 10L) "$yuan.0$fen"
-    else "$yuan.$fen"
-}

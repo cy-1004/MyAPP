@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -34,9 +35,17 @@ class AppPreferences @Inject constructor(
     // ---- 首页卡片配置：id -> 顺序/显隐，JSON 存储 ----
     val homeCardConfig: Flow<String> = read(Keys.HOME_CARD_CONFIG, "")
 
+    /** 经期预计开始日提前几天提醒（PRD 3.2 默认 2 天）。 */
+    val periodReminderLeadDays: Flow<Int> =
+        store.data.map { it[Keys.PERIOD_REMINDER_LEAD_DAYS] ?: 2 }
+
     suspend fun setThemeMode(value: String) = write(Keys.THEME_MODE, value)
     suspend fun setMotionLevel(value: String) = write(Keys.MOTION_LEVEL, value)
     suspend fun setHomeCardConfig(json: String) = write(Keys.HOME_CARD_CONFIG, json)
+
+    suspend fun setPeriodReminderLeadDays(days: Int) {
+        store.edit { it[Keys.PERIOD_REMINDER_LEAD_DAYS] = days }
+    }
 
     /**
      * 功能开关（PRD 4.7.6）。
@@ -90,5 +99,6 @@ class AppPreferences @Inject constructor(
         val THEME_MODE = stringPreferencesKey("app.themeMode")
         val MOTION_LEVEL = stringPreferencesKey("app.motionLevel")
         val HOME_CARD_CONFIG = stringPreferencesKey("home.cardConfig")
+        val PERIOD_REMINDER_LEAD_DAYS = intPreferencesKey("period.reminderLeadDays")
     }
 }

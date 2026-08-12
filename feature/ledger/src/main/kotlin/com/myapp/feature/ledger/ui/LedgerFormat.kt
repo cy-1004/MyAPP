@@ -2,6 +2,8 @@ package com.myapp.feature.ledger.ui
 
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.common.time.AppFormatters
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 /**
  * 金额显示格式化。
@@ -39,3 +41,12 @@ fun cycleRangeText(startMillis: Long, endExclusiveMillis: Long): String {
         else -> "${startDate.format(AppFormatters.dateWithYear)} - ${endDate.format(AppFormatters.dateWithYear)}"
     }
 }
+
+private val MONTH_ONLY_FORMAT = DateTimeFormatter.ofPattern("M月")
+private val MONTH_WITH_YEAR_FORMAT = DateTimeFormatter.ofPattern("yyyy年M月")
+
+/** 趋势图柱子下的短标签："2026-08-01" -> "8月"。 */
+fun LocalDate.monthLabelText(): String = format(MONTH_ONLY_FORMAT)
+
+/** 统计页月份选择器标题："2026-08-01" -> "2026年8月"。 */
+fun LocalDate.monthTitleText(): String = format(MONTH_WITH_YEAR_FORMAT)

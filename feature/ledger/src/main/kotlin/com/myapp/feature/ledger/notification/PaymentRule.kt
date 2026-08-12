@@ -48,6 +48,16 @@ val builtinPaymentRules: List<PaymentRule> = listOf(
         merchantGroupName = PaymentRule.MERCHANT_GROUP,
         builtinId = BuiltinIds.WECHAT_VOUCHER,
     ),
+    // 微信扫码支付凭证：已支付 ¥17.90 幸福便利店（无「向」字，商户在金额之后）
+    PaymentRule(
+        channel = "WECHAT",
+        direction = TransactionDirection.EXPENSE,
+        titleKeywords = listOf("微信"),
+        // possessive（?+）防回溯：否则 "已支付 ¥5.00" 会把 "0" 偷给商户组，同支付宝规则
+        textRegex = Regex("""已支付\s*[¥￥]?(?<amount>[0-9]+(?:\.[0-9]{1,2})?+)\s*(?:元)?\s*(?<merchant>.+)$"""),
+        merchantGroupName = PaymentRule.MERCHANT_GROUP,
+        builtinId = BuiltinIds.WECHAT_SCAN_VOUCHER,
+    ),
     // 微信收款/到账（关键词与金额之间可能有「转账」等间隔词）
     PaymentRule(
         channel = "WECHAT",
@@ -103,6 +113,7 @@ val builtinPaymentRules: List<PaymentRule> = listOf(
 /** 内置规则稳定 id（用于停用状态持久化；不怕规则重排）。 */
 object BuiltinIds {
     const val WECHAT_VOUCHER = "builtin.wechat.voucher"
+    const val WECHAT_SCAN_VOUCHER = "builtin.wechat.scan_voucher"
     const val WECHAT_INCOME = "builtin.wechat.income"
     const val ALIPAY_EXPENSE = "builtin.alipay.expense"
     const val BANK_EXPENSE = "builtin.bank.expense"
@@ -117,6 +128,7 @@ object BuiltinIds {
  */
 val builtinPaymentRuleLabels: List<Pair<String, String>> = listOf(
     BuiltinIds.WECHAT_VOUCHER to "微信付款凭证（向 X 付款 Y 元）",
+    BuiltinIds.WECHAT_SCAN_VOUCHER to "微信扫码支付凭证（已支付 ¥X 商户）",
     BuiltinIds.WECHAT_INCOME to "微信收款/到账",
     BuiltinIds.ALIPAY_EXPENSE to "支付宝支付成功",
     BuiltinIds.BANK_EXPENSE to "银行卡支出人民币",

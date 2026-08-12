@@ -4,7 +4,9 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.settings.SettingsScreen
+import com.myapp.feature.settings.cardorder.HomeCardOrderScreen
 import com.myapp.feature.settings.keepalive.KeepAliveCheckScreen
+import com.myapp.feature.settings.periodreminder.PeriodReminderSettingsScreen
 
 /**
  * 设置模块的导航图（PRD 4.7.3）。
@@ -28,5 +30,13 @@ fun NavGraphBuilder.settingsGraph(
             onComplete = onKeepAliveComplete,
             firstRun = isFirstRun,
         )
+    }
+
+    composable<Route.HomeCardOrder> {
+        HomeCardOrderScreen(onBack = onBack)
+    }
+
+    composable<Route.PeriodReminderSettings> {
+        PeriodReminderSettingsScreen(onBack = onBack)
     }
 }

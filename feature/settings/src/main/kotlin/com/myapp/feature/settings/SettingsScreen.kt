@@ -103,6 +103,22 @@ fun SettingsScreen(
                     onClick = { onNavigate(Route.CategoryList) },
                 )
             }
+            item(key = "home_card_order") {
+                SettingsItem(
+                    title = "首页卡片排序",
+                    description = "自定义首页各卡片的顺序与显隐",
+                    enabled = true,
+                    onClick = { onNavigate(Route.HomeCardOrder) },
+                )
+            }
+            item(key = "period_reminder") {
+                SettingsItem(
+                    title = "经期提醒提前天数",
+                    description = "自定义预计经期开始日前几天提醒",
+                    enabled = true,
+                    onClick = { onNavigate(Route.PeriodReminderSettings) },
+                )
+            }
             item(key = "keepalive") {
                 SettingsItem(
                     title = "保活自检",

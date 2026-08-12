@@ -58,6 +58,7 @@ class TodoHomeCard @Inject constructor() : HomeCard {
 
     override val id: String = "todo"
     override val defaultOrder: Int = HomeCardOrder.TODO
+    override val displayName: String = "今日待办"
 
     @Composable
     override fun Content(onNavigate: (Route) -> Unit) {

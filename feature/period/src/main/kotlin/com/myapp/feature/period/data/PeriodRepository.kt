@@ -7,6 +7,7 @@ import com.myapp.core.common.di.IoDispatcher
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.database.dao.PeriodDao
 import com.myapp.core.database.model.PeriodRecordEntity
+import com.myapp.core.datastore.AppPreferences
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
@@ -14,6 +15,7 @@ import javax.inject.Singleton
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
@@ -104,9 +106,6 @@ private const val MAX_ONGOING_DAYS = 15
  */
 private const val PERIOD_REMINDER_KEY = "period:next"
 
-/** 预计开始日前 N 天提醒，PRD 3.2 默认 2 天（暂未做成可配置项）。 */
-private const val REMINDER_LEAD_DAYS = 2L
-
 /** 提醒统一在当天上午 9 点触发。 */
 private const val REMINDER_HOUR = 9
 
@@ -114,6 +113,7 @@ private const val REMINDER_HOUR = 9
 class PeriodRepository @Inject constructor(
     private val dao: PeriodDao,
     private val reminderScheduler: ReminderScheduler,
+    private val appPreferences: AppPreferences,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ReminderSource {
 
@@ -198,13 +198,14 @@ class PeriodRepository @Inject constructor(
         val records = dao.getRecent(CYCLE_SAMPLE_SIZE + 1).map { it.toDomain() }
         if (records.isEmpty()) return null
         val predictedStart = computeState(records, AppTime.today()).predictedStart ?: return null
-        val triggerDate = predictedStart.minusDays(REMINDER_LEAD_DAYS)
+        val leadDays = appPreferences.periodReminderLeadDays.first()
+        val triggerDate = predictedStart.minusDays(leadDays.toLong())
         val triggerAt = with(AppTime) { triggerDate.toEpochMilliAtTime(REMINDER_HOUR) }
         return ReminderRequest(
             key = PERIOD_REMINDER_KEY,
             triggerAtMillis = triggerAt,
             title = "经期提醒",
-            body = "预计 $REMINDER_LEAD_DAYS 天后开始",
+            body = "预计 $leadDays 天后开始",
         )
     }
 }

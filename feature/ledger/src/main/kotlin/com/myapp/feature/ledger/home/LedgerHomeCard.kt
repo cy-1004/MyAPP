@@ -49,6 +49,7 @@ import javax.inject.Inject
 class LedgerHomeCard @Inject constructor() : BaseHomeCard(
     id = "ledger",
     defaultOrder = HomeCardOrder.LEDGER,
+    displayName = "今日支出",
 ) {
 
     @Composable
@@ -64,7 +65,8 @@ class LedgerHomeCard @Inject constructor() : BaseHomeCard(
                     text = if (state.todaySpendingCents == 0L) "今天还没记账"
                            else "今日已花 ${state.todaySpendingCents.yuanWithSymbol()}",
                     actionLabel = "设置预算",
-                    onAction = { onNavigate(Route.Ledger) },
+                    // 直达预算页：那里既能设预算，也是设完之后要看的地方
+                    onAction = { onNavigate(Route.Budget) },
                 )
             } else {
                 BudgetContent(state = state)
