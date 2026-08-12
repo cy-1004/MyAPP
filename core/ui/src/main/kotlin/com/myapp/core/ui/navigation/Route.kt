@@ -116,6 +116,10 @@ sealed interface Route {
     @Serializable
     data class KnowledgeReader(val sourceId: Long) : Route
 
+    /** 正文提取选择器设置（PRD 3.7）：飞书改版时不用等发版就能调整。 */
+    @Serializable
+    data object KnowledgeExtractSettings : Route
+
     @Serializable
     data object Settings : Route
 
