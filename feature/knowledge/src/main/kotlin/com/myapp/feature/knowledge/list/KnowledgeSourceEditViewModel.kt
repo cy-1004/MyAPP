@@ -20,14 +20,22 @@ class KnowledgeSourceEditViewModel @Inject constructor(
     private val repository: KnowledgeRepository,
 ) : ViewModel() {
 
-    private val id: Long = savedStateHandle.toRoute<Route.KnowledgeSourceDetail>().id
+    private val route = savedStateHandle.toRoute<Route.KnowledgeSourceDetail>()
+    private val id: Long = route.id
 
     private val _draft = MutableStateFlow(KnowledgeSourceDraft(id = id))
     val draft: StateFlow<KnowledgeSourceDraft> = _draft.asStateFlow()
 
     init {
         viewModelScope.launch {
-            _draft.value = repository.loadDraft(id)
+            val loaded = repository.loadDraft(id)
+            val sharedUrl = route.sharedUrl
+            // 分享菜单带来的链接只在新建时预填，不覆盖已有知识源的 URL。
+            _draft.value = if (loaded.isNew && !sharedUrl.isNullOrBlank()) {
+                loaded.copy(url = sharedUrl)
+            } else {
+                loaded
+            }
         }
     }
 

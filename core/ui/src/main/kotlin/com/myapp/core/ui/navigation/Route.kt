@@ -108,9 +108,12 @@ sealed interface Route {
     @Serializable
     data object KnowledgeSources : Route
 
-    /** 知识源编辑页。id 为 0 表示新建，与待办/纪念日/分类同一套约定。 */
+    /**
+     * 知识源编辑页。id 为 0 表示新建，与待办/纪念日/分类同一套约定。
+     * sharedUrl：系统分享菜单「分享到 MyAPP」带过来的链接，仅新建时用于预填 URL 输入框。
+     */
     @Serializable
-    data class KnowledgeSourceDetail(val id: Long = 0L) : Route
+    data class KnowledgeSourceDetail(val id: Long = 0L, val sharedUrl: String? = null) : Route
 
     /** 知识源阅读页：内嵌 WebView + 自定义工具栏（PRD 3.7）。 */
     @Serializable

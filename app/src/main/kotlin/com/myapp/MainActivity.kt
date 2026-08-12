@@ -20,6 +20,7 @@ import com.myapp.core.common.keepalive.KeepAliveStatusChecker
 import com.myapp.core.datastore.AppPreferences
 import com.myapp.core.designsystem.theme.MyAppTheme
 import com.myapp.core.ui.navigation.Route
+import com.myapp.feature.knowledge.data.KnowledgeShareTarget
 import com.myapp.feature.ledger.data.LedgerDeepLink
 import com.myapp.feature.ledger.notification.LedgerNotifierExtras
 import com.myapp.feature.widget.WidgetIntents
@@ -51,6 +52,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var widgetNavTarget: WidgetNavTarget
 
+    @Inject
+    lateinit var knowledgeShareTarget: KnowledgeShareTarget
+
     /**
      * null = 未读取完，splash 挂住；
      * true = 已完成保活自检（或老用户升级），进 Home；
@@ -75,6 +79,8 @@ class MainActivity : ComponentActivity() {
         handleLedgerDeepLink(intent)
         // 小组件点击拉起：目标页面写入 WidgetNavTarget，MyApp 收集后导航
         handleWidgetIntent(intent)
+        // 系统分享菜单「分享到 MyAPP」：链接写入 KnowledgeShareTarget，MyApp 收集后导航到知识源新建页
+        handleKnowledgeShareIntent(intent)
 
         // 3. 异步读 onboarding 标志；老用户升级直接写 true 跳过向导
         appScope.launch {
@@ -132,6 +138,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         handleLedgerDeepLink(intent)
         handleWidgetIntent(intent)
+        handleKnowledgeShareIntent(intent)
     }
 
     private fun handleLedgerDeepLink(intent: Intent?) {
@@ -151,6 +158,18 @@ class MainActivity : ComponentActivity() {
     private fun handleWidgetIntent(intent: Intent?) {
         val screen = intent?.getStringExtra(WidgetIntents.EXTRA_SCREEN) ?: return
         widgetNavTarget.open(screen)
+    }
+
+    /**
+     * 系统分享菜单「分享到 MyAPP」拉起（浏览器/飞书分享文本链接）：
+     * `ACTION_SEND` + `text/plain` 只带 `EXTRA_TEXT`，直接当 URL 预填知识源新建页，
+     * 不做域名校验——编辑页本身对 URL 就是宽松处理（同知识源编辑约定）。
+     */
+    private fun handleKnowledgeShareIntent(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND || intent.type != "text/plain") return
+        val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim() ?: return
+        if (sharedText.isBlank()) return
+        knowledgeShareTarget.share(sharedText)
     }
 
     /**

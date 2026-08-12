@@ -53,17 +53,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!--
-              「分享到 MyAPP」：从浏览器/飞书分享链接直接加入知识源（PRD 3.7）。
-              feature:knowledge 落地后启用。
-            -->
-            <!--
+            <!-- 「分享到 MyAPP」：从浏览器/飞书分享链接直接加入知识源（PRD 3.7）。 -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
-            -->
         </activity>
 
         <!-- 开机 / 应用更新后重建闹钟 -->

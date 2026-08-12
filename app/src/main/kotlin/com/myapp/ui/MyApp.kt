@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.myapp.feature.knowledge.navigation.KnowledgeGraphEntryPoint
 import com.myapp.feature.ledger.data.LedgerDeepLink
 import com.myapp.feature.ledger.navigation.LedgerGraphEntryPoint
 import com.myapp.feature.widget.data.WidgetNavTarget
@@ -94,6 +95,24 @@ fun MyApp(initialRoute: Route) {
                     }
                 }
                 widgetNavTarget.consume()
+            }
+        }
+    }
+
+    // 系统分享菜单「分享到 MyAPP」→ 知识源新建页（MainActivity 写入，这里收集后导航）
+    val knowledgeShareTarget = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            KnowledgeGraphEntryPoint::class.java,
+        ).knowledgeShareTarget()
+    }
+    LaunchedEffect(Unit) {
+        knowledgeShareTarget.target.collect { url ->
+            if (url != null) {
+                navController.navigate(Route.KnowledgeSourceDetail(sharedUrl = url)) {
+                    launchSingleTop = true
+                }
+                knowledgeShareTarget.consume()
             }
         }
     }
