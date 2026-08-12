@@ -209,7 +209,13 @@ fun LedgerEditScreen(
                             val date = Instant.ofEpochMilli(millis)
                                 .atZone(ZoneOffset.UTC)
                                 .toLocalDate()
-                            viewModel.updateOccurredAt(with(AppTime) { date.toEpochMilliAtStartOfDay() })
+                            // 只换日期保留原时分秒，否则 00:00 会盖掉当前时间
+                            val time = with(AppTime) {
+                                draft.occurredAt.toLocalDateTime().toLocalTime()
+                            }
+                            viewModel.updateOccurredAt(
+                                with(AppTime) { date.atTime(time).toEpochMilli() }
+                            )
                         }
                         showDatePicker = false
                     },
@@ -347,6 +353,11 @@ private fun DateRow(
     onQuickPick: (Long) -> Unit,
     onPickDate: () -> Unit,
 ) {
+    val today = AppTime.today()
+    val occurredDate = with(AppTime) { occurredAt.toLocalDate() }
+    // 快选/选日期只换日期，时分秒沿用 draft 现有时间（默认是 AppTime.now()），否则会被盖成 00:00
+    val occurredTime = with(AppTime) { occurredAt.toLocalDateTime().toLocalTime() }
+
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Row(
             modifier = Modifier
@@ -355,14 +366,22 @@ private fun DateRow(
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             FilterChip(
-                selected = false,
-                onClick = { onQuickPick(with(AppTime) { AppTime.today().toEpochMilliAtStartOfDay() }) },
+                selected = occurredDate == today,
+                onClick = {
+                    val newMillis = with(AppTime) { today.atTime(occurredTime).toEpochMilli() }
+                    onQuickPick(newMillis)
+                },
                 label = { Text("今天", style = MaterialTheme.typography.labelLarge) },
                 shape = MaterialTheme.shapes.small,
             )
             FilterChip(
-                selected = false,
-                onClick = { onQuickPick(with(AppTime) { AppTime.today().minusDays(1).toEpochMilliAtStartOfDay() }) },
+                selected = occurredDate == today.minusDays(1),
+                onClick = {
+                    val newMillis = with(AppTime) {
+                        today.minusDays(1).atTime(occurredTime).toEpochMilli()
+                    }
+                    onQuickPick(newMillis)
+                },
                 label = { Text("昨天", style = MaterialTheme.typography.labelLarge) },
                 shape = MaterialTheme.shapes.small,
             )
@@ -378,7 +397,7 @@ private fun DateRow(
             occurredAt.toLocalDate().format(AppFormatters.dateWithYear)
         }
         Text(
-            text = dateText,
+            text = "$dateText ${occurredTime.format(AppFormatters.time)}",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
