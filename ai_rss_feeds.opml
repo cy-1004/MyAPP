@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>AI &amp; LLM Progress Feeds - 前沿新闻、论文、开发工具订阅源</title>
+    <dateCreated>2026-08-12T00:00:00Z</dateCreated>
+    <ownerName>AI News Curator</ownerName>
+    <ownerEmail>curator@example.com</ownerEmail>
+  </head>
+  <body>
+    <!-- 一、国际大厂 & 实验室官方动态 -->
+    <outline text="🏢 国际大厂动态（Official Labs）" title="国际大厂动态（Official Labs）">
+      <outline text="OpenAI News" title="OpenAI News" type="rss" xmlUrl="https://openai.com/news/rss.xml"/>
+      <outline text="Anthropic News（非官方镜像）" title="Anthropic News（非官方镜像）" type="rss" xmlUrl="https://rsshub.bestblogs.dev/anthropic/news"/>
+      <outline text="Anthropic Engineering Blog" title="Anthropic Engineering Blog" type="rss" xmlUrl="https://conoro.github.io/anthropic-engineering-rss-feed/anthropic_engineering_rss.xml"/>
+      <outline text="Google DeepMind Blog" title="Google DeepMind Blog" type="rss" xmlUrl="https://deepmind.google/blog/feed/basic/"/>
+      <outline text="Hugging Face Blog" title="Hugging Face Blog" type="atom" xmlUrl="https://huggingface.co/blog/feed.xml"/>
+      <outline text="Apple Machine Learning Research" title="Apple Machine Learning Research" type="rss" xmlUrl="https://machinelearning.apple.com/rss.xml"/>
+      <outline text="Meta AI Blog" title="Meta AI Blog" type="rss" xmlUrl="https://www.facebook.com/feeds/page.php?id=1510532999&amp;format=rss20"/>
+    </outline>
+
+    <!-- 二、学术前沿论文（arXiv） -->
+    <outline text="📚 学术论文（arXiv - 每日更新）" title="学术论文（arXiv）">
+      <outline text="arXiv cs.AI 人工智能" title="arXiv cs.AI 人工智能" type="rss" xmlUrl="http://export.arxiv.org/rss/cs.AI"/>
+      <outline text="arXiv cs.CL 自然语言处理/大模型" title="arXiv cs.CL 自然语言处理/大模型" type="rss" xmlUrl="http://export.arxiv.org/rss/cs.CL"/>
+      <outline text="arXiv cs.LG 机器学习" title="arXiv cs.LG 机器学习" type="rss" xmlUrl="http://export.arxiv.org/rss/cs.LG"/>
+      <outline text="arXiv cs.CV 计算机视觉" title="arXiv cs.CV 计算机视觉" type="rss" xmlUrl="http://export.arxiv.org/rss/cs.CV"/>
+    </outline>
+
+    <!-- 三、国内大模型资讯 -->
+    <outline text="🇨🇳 国内大模型动态" title="国内大模型动态">
+      <outline text="量子位 QbitAI" title="量子位 QbitAI" type="rss" xmlUrl="https://www.qbitai.com/feed"/>
+      <outline text="机器之心（微信桥接）" title="机器之心（微信桥接）" type="rss" xmlUrl="https://plink.anyfeeder.com/weixin/almosthuman2014"/>
+      <outline text="新智元（微信桥接）" title="新智元（微信桥接）" type="rss" xmlUrl="https://plink.anyfeeder.com/weixin/AI_era"/>
+      <outline text="微软研究院AI头条（微信桥接）" title="微软研究院AI头条（微信桥接）" type="rss" xmlUrl="https://plink.anyfeeder.com/weixin/MSRAsia"/>
+    </outline>
+
+    <!-- 四、科技媒体 / 深度报道 -->
+    <outline text="📰 科技媒体 &amp; 深度报道" title="科技媒体 &amp; 深度报道">
+      <outline text="TechCrunch - AI" title="TechCrunch - AI" type="rss" xmlUrl="https://techcrunch.com/category/artificial-intelligence/feed/"/>
+      <outline text="Ars Technica" title="Ars Technica" type="rss" xmlUrl="https://feeds.arstechnica.com/arstechnica/index"/>
+      <outline text="The Verge - Tech" title="The Verge - Tech" type="rss" xmlUrl="https://www.theverge.com/rss/index.xml"/>
+      <outline text="WIRED - AI" title="WIRED - AI" type="rss" xmlUrl="https://www.wired.com/feed/tag/ai/latest/rss"/>
+    </outline>
+
+    <!-- 五、编程 / Agent Harness / Claude Code / 开发者工具 -->
+    <outline text="⚙️ Agent Harness &amp; 开发者工具" title="Agent Harness &amp; 开发者工具">
+      <outline text="Claude Code Release Notes（GitHub Releases）" title="Claude Code Release Notes" type="atom" xmlUrl="https://github.com/anthropics/claude-code/releases.atom"/>
+      <outline text="LangChain Blog（Agents &amp; LangGraph）" title="LangChain Blog" type="rss" xmlUrl="https://blog.langchain.dev/rss/"/>
+      <outline text="GitHub Blog - 工程博客" title="GitHub Blog - 工程博客" type="rss" xmlUrl="https://github.blog/feed/"/>
+      <outline text="GitHub Blog - AI &amp; ML" title="GitHub Blog - AI &amp; ML" type="rss" xmlUrl="https://github.blog/ai-and-ml/feed/"/>
+      <outline text="Simon Willison's Weblog（coding agent &amp; LLM实践）" title="Simon Willison's Weblog" type="atom" xmlUrl="https://simonwillison.net/atom/everything/"/>
+    </outline>
+
+    <!-- 六、独立学者 / 深度分析 / 学习向 Newsletter -->
+    <outline text="🧠 独立学者 &amp; 深度分析" title="独立学者 &amp; 深度分析">
+      <outline text="Ahead of AI（Sebastian Raschka）" title="Ahead of AI" type="rss" xmlUrl="https://magazine.sebastianraschka.com/feed"/>
+      <outline text="Interconnects（Nathan Lambert - RLHF &amp; 实验室内幕）" title="Interconnects" type="rss" xmlUrl="https://www.interconnects.ai/feed"/>
+      <outline text="Latent.Space（AI工程 &amp; Agents访谈）" title="Latent.Space" type="rss" xmlUrl="https://www.latent.space/feed"/>
+      <outline text="Import AI（Jack Clark - 政策视角）" title="Import AI" type="rss" xmlUrl="https://jack-clark.net/feed.xml"/>
+    </outline>
+
+    <!-- 七、开发技能 / 编程教程 / Harness最佳实践 -->
+    <outline text="🛠️ 开发技能 &amp; 教程" title="开发技能 &amp; 教程">
+      <outline text="CSS-Tricks（web开发）" title="CSS-Tricks" type="rss" xmlUrl="https://css-tricks.com/feed/"/>
+      <outline text="web.dev（Google开发者）" title="web.dev" type="rss" xmlUrl="https://web.dev/feed.xml"/>
+      <outline text="InfoQ 中文（工程方向）" title="InfoQ 中文" type="rss" xmlUrl="https://plink.anyfeeder.com/infoq/recommend"/>
+      <outline text="阮一峰的网络日志（算法 &amp; 工程笔记）" title="阮一峰的网络日志" type="atom" xmlUrl="https://www.ruanyifeng.com/blog/atom.xml"/>
+    </outline>
+
+    <!-- 八、补充：其他高质量源 -->
+    <outline text="⭐ 其他高质量源" title="其他高质量源">
+      <outline text="Berkeley AI Research Blog" title="Berkeley AI Research Blog" type="rss" xmlUrl="https://bair.berkeley.edu/blog/feed.xml"/>
+      <outline text="Distill.pub（可视化ML论文）" title="Distill.pub" type="rss" xmlUrl="https://distill.pub/rss.xml"/>
+      <outline text="Hacker News（Y Combinator）" title="Hacker News" type="rss" xmlUrl="https://hnrss.org/frontpage"/>
+      <outline text="Papers With Code（ML论文 + 代码）" title="Papers With Code" type="rss" xmlUrl="https://paperswithcode.com/rss"/>
+    </outline>
+
+  </body>
+</opml>

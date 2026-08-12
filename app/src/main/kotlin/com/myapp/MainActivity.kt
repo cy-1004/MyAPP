@@ -10,15 +10,19 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myapp.core.common.di.ApplicationScope
 import com.myapp.core.common.keepalive.KeepAliveStatusChecker
 import com.myapp.core.datastore.AppPreferences
+import com.myapp.core.designsystem.theme.MotionLevel
 import com.myapp.core.designsystem.theme.MyAppTheme
+import com.myapp.core.designsystem.theme.rememberSystemMotionLevel
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.knowledge.data.KnowledgeShareTarget
 import com.myapp.feature.ledger.data.LedgerDeepLink
@@ -120,7 +124,26 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
-            MyAppTheme {
+            val themeMode by appPreferences.themeMode.collectAsStateWithLifecycle(initialValue = "system")
+            val motionLevelPref by appPreferences.motionLevel.collectAsStateWithLifecycle(initialValue = "full")
+            val dynamicColorEnabled by appPreferences.dynamicColorEnabled.collectAsStateWithLifecycle(initialValue = false)
+
+            val darkTheme = when (themeMode) {
+                "light" -> false
+                "dark" -> true
+                else -> isSystemInDarkTheme()
+            }
+            val userMotionLevel = when (motionLevelPref) {
+                "reduced" -> MotionLevel.Reduced
+                "none" -> MotionLevel.None
+                else -> MotionLevel.Full
+            }
+
+            MyAppTheme(
+                darkTheme = darkTheme,
+                dynamicColor = dynamicColorEnabled,
+                motionLevel = rememberSystemMotionLevel(userMotionLevel),
+            ) {
                 val initialRoute = when (keepAliveChecked) {
                     true -> Route.Home
                     false, null -> Route.KeepAliveCheck

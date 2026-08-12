@@ -4,6 +4,8 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.settings.SettingsScreen
+import com.myapp.feature.settings.about.AboutScreen
+import com.myapp.feature.settings.appearance.AppearanceScreen
 import com.myapp.feature.settings.cardorder.HomeCardOrderScreen
 import com.myapp.feature.settings.keepalive.KeepAliveCheckScreen
 import com.myapp.feature.settings.periodreminder.PeriodReminderSettingsScreen
@@ -38,5 +40,13 @@ fun NavGraphBuilder.settingsGraph(
 
     composable<Route.PeriodReminderSettings> {
         PeriodReminderSettingsScreen(onBack = onBack)
+    }
+
+    composable<Route.Appearance> {
+        AppearanceScreen(onBack = onBack)
+    }
+
+    composable<Route.About> {
+        AboutScreen(onBack = onBack)
     }
 }

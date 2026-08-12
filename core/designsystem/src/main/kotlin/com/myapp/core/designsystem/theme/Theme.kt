@@ -1,5 +1,6 @@
 package com.myapp.core.designsystem.theme
 
+import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -7,6 +8,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -93,12 +96,14 @@ private val DarkScheme = darkColorScheme(
 /**
  * 全局主题。
  *
- * 注意这里**不接系统动态取色**（Material You）。默认保持 Claude 风格的品牌感，
- * 动态取色作为设置项后置——这是刻意的设计决定，不是遗漏。
+ * 默认**不接系统动态取色**（Material You）——默认保持 Claude 风格的品牌感，
+ * 这是刻意的设计决定。[dynamicColor] 是设置页「外观」里的可选项，默认 false；
+ * 用户主动开启时才切到系统取色（仅 Android 12+/API 31+ 有效，以下版本静默回退品牌配色）。
  */
 @Composable
 fun MyAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = false,
     motionLevel: MotionLevel = rememberSystemMotionLevel(),
     content: @Composable () -> Unit,
 ) {
@@ -108,12 +113,20 @@ fun MyAppTheme(
         AppColors(BorderLight, TextSecondary, TextTertiary, Success, Warning, Danger, false)
     }
 
+    val context = LocalContext.current
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        darkTheme -> DarkScheme
+        else -> LightScheme
+    }
+
     CompositionLocalProvider(
         LocalAppColors provides appColors,
         LocalMotionLevel provides motionLevel,
     ) {
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkScheme else LightScheme,
+            colorScheme = colorScheme,
             typography = AppTypography,
             shapes = AppShapes,
             motionScheme = MotionScheme.expressive(),

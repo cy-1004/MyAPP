@@ -36,9 +36,7 @@ import com.myapp.core.designsystem.theme.appColors
 import com.myapp.core.ui.navigation.Route
 
 /**
- * 设置首页（PRD 9.3）：保活自检入口 + 自动记账开关。
- *
- * 其余设置项（外观/关于）暂为占位，后续功能落地时填充。
+ * 设置首页（PRD 9.3 / 3.12）：保活自检入口 + 自动记账开关 + 外观 + 关于。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,17 +128,17 @@ fun SettingsScreen(
             item(key = "appearance") {
                 SettingsItem(
                     title = "外观",
-                    description = "主题、动效级别（即将推出）",
-                    enabled = false,
-                    onClick = {},
+                    description = "主题模式、动态取色、动效强度",
+                    enabled = true,
+                    onClick = { onNavigate(Route.Appearance) },
                 )
             }
             item(key = "about") {
                 SettingsItem(
                     title = "关于",
                     description = "版本信息",
-                    enabled = false,
-                    onClick = {},
+                    enabled = true,
+                    onClick = { onNavigate(Route.About) },
                 )
             }
         }

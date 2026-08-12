@@ -160,6 +160,14 @@ sealed interface Route {
     /** 经期提醒提前天数设置（PRD 3.2）。 */
     @Serializable
     data object PeriodReminderSettings : Route
+
+    /** 外观设置（PRD 3.12）：主题模式 / 动态取色 / 动效强度。 */
+    @Serializable
+    data object Appearance : Route
+
+    /** 关于（PRD 3.12）：版本信息 + 开源许可。 */
+    @Serializable
+    data object About : Route
 }
 
 /** 底部导航的一级入口。 */

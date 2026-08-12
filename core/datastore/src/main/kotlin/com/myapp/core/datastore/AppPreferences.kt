@@ -32,6 +32,11 @@ class AppPreferences @Inject constructor(
     val themeMode: Flow<String> = read(Keys.THEME_MODE, "system")   // system / light / dark
     val motionLevel: Flow<String> = read(Keys.MOTION_LEVEL, "full") // full / reduced / none
 
+    /** Material You 动态取色，默认关闭（PRD 5 章：默认保持品牌感，是刻意的设计决定）。 */
+    val dynamicColorEnabled: Flow<Boolean> = store.data.map {
+        it[Keys.DYNAMIC_COLOR_ENABLED] ?: false
+    }
+
     // ---- 首页卡片配置：id -> 顺序/显隐，JSON 存储 ----
     val homeCardConfig: Flow<String> = read(Keys.HOME_CARD_CONFIG, "")
 
@@ -42,6 +47,10 @@ class AppPreferences @Inject constructor(
     suspend fun setThemeMode(value: String) = write(Keys.THEME_MODE, value)
     suspend fun setMotionLevel(value: String) = write(Keys.MOTION_LEVEL, value)
     suspend fun setHomeCardConfig(json: String) = write(Keys.HOME_CARD_CONFIG, json)
+
+    suspend fun setDynamicColorEnabled(enabled: Boolean) {
+        store.edit { it[Keys.DYNAMIC_COLOR_ENABLED] = enabled }
+    }
 
     suspend fun setPeriodReminderLeadDays(days: Int) {
         store.edit { it[Keys.PERIOD_REMINDER_LEAD_DAYS] = days }
@@ -98,6 +107,7 @@ class AppPreferences @Inject constructor(
     private object Keys {
         val THEME_MODE = stringPreferencesKey("app.themeMode")
         val MOTION_LEVEL = stringPreferencesKey("app.motionLevel")
+        val DYNAMIC_COLOR_ENABLED = booleanPreferencesKey("app.dynamicColorEnabled")
         val HOME_CARD_CONFIG = stringPreferencesKey("home.cardConfig")
         val PERIOD_REMINDER_LEAD_DAYS = intPreferencesKey("period.reminderLeadDays")
     }
