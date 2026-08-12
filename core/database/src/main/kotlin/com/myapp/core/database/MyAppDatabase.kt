@@ -18,6 +18,7 @@ import com.myapp.core.database.model.NoteEntity
 import com.myapp.core.database.model.NoteFtsEntity
 import com.myapp.core.database.model.PeriodRecordEntity
 import com.myapp.core.database.model.QuestionEntity
+import com.myapp.core.database.model.QuestionFtsEntity
 import com.myapp.core.database.model.TodoEntity
 import com.myapp.core.database.model.TransactionEntity
 
@@ -46,6 +47,7 @@ import com.myapp.core.database.model.TransactionEntity
         NoteEntity::class,
         NoteFtsEntity::class,
         QuestionEntity::class,
+        QuestionFtsEntity::class,
         // M5 记账（PRD 3.6）：
         TransactionEntity::class,
         CategoryEntity::class,
@@ -55,7 +57,7 @@ import com.myapp.core.database.model.TransactionEntity
         // KnowledgeSourceEntity, KnowledgeContentEntity, KnowledgeReviewEntity,
         // RssFeedEntity, RssArticleEntity,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

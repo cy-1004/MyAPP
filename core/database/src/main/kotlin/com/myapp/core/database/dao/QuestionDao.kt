@@ -35,14 +35,16 @@ interface QuestionDao {
     fun observeByTag(tag: String): Flow<List<QuestionEntity>>
 
     /**
-     * 简单 LIKE 搜索 content。V1 不上 FTS：疑问量级远低于笔记，
-     * LIKE 在这量级够用；将来需要再加 v5 迁移补 FTS（参考 MIGRATION_2_3）。
+     * 全文搜索：JOIN question_fts 取命中的 question 行，与 [NoteDao.search] 同一套模式。
+     *
+     * FTS MATCH 的转义在 Repository 层完成，DAO 只接受已转义的 query。
      */
     @Query(
         """
-        SELECT * FROM question
-        WHERE deleted_at IS NULL AND content LIKE '%' || :query || '%'
-        ORDER BY updated_at DESC
+        SELECT question.* FROM question
+        JOIN question_fts ON question.id = question_fts.rowid
+        WHERE question.deleted_at IS NULL AND question_fts MATCH :query
+        ORDER BY question.updated_at DESC
         """,
     )
     fun search(query: String): Flow<List<QuestionEntity>>

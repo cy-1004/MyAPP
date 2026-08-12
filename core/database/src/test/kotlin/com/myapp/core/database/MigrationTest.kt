@@ -24,7 +24,7 @@ import org.robolectric.annotation.Config
  * 2. 数据保留：每个迁移前后都插一条 todo，迁移后查回来，证明 ALTER/CREATE 不动旧表数据
  * 3. 新表就绪：迁移后新表存在且为空（用 SELECT COUNT(*) = 0 间接验证）
  *
- * **覆盖范围**：v1->v2 / v2->v3 / v3->v4 / v4->v5 单步 + v1->v4 / v1->v5 全链路。
+ * **覆盖范围**：v1->v2 / v2->v3 / v3->v4 / v4->v5 / v5->v6 单步 + v1->v4 / v1->v5 / v1->v6 全链路。
  *
  * **运行环境**：Robolectric（JVM 单测，无需真机）。@Config(sdk = [35]) 是因为
  * Robolectric 4.14.1 支持到 SDK 35，targetSdk 36 还没支持，显式降一档跑。
@@ -165,19 +165,40 @@ class MigrationTest {
     }
 
     @Test
-    fun `v1_to_v5_全链路迁移_数据完整保留`() {
+    fun `v5_to_v6_新增question_fts_旧question数据保留且可被搜到`() {
+        helper.createDatabase(dbName, 5).apply {
+            insertQuestion(uuid = "q-5", content = "v5 遗留疑问", createdAt = 5_000L)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(dbName, 6, true, MIGRATION_5_6)
+
+        // 旧数据保留
+        db.query("SELECT content FROM question WHERE uuid = 'q-5'").use { c ->
+            assertTrue(c.moveToFirst()); assertEquals("v5 遗留疑问", c.getString(0))
+        }
+        // 迁移里的 rebuild 命令必须把老数据也建进索引，否则升级前的疑问永远搜不到
+        db.query("SELECT content FROM question_fts WHERE question_fts MATCH 'v5'").use { c ->
+            assertTrue("迁移前的旧疑问应该已经建进 FTS 索引", c.moveToFirst())
+            assertEquals("v5 遗留疑问", c.getString(0))
+        }
+        db.close()
+    }
+
+    @Test
+    fun `v1_to_v6_全链路迁移_数据完整保留`() {
         helper.createDatabase(dbName, 1).apply {
-            insertTodo(uuid = "todo-v5", title = "跨五版验证", createdAt = 1L)
+            insertTodo(uuid = "todo-v6", title = "跨六版验证", createdAt = 1L)
             close()
         }
 
         val db = helper.runMigrationsAndValidate(
-            dbName, 5, true, *ALL_MIGRATIONS,
+            dbName, 6, true, *ALL_MIGRATIONS,
         )
 
-        // 跨 5 个版本迁移后，最早的 todo 数据仍在
-        db.query("SELECT title FROM todo WHERE uuid = 'todo-v5'").use { c ->
-            assertTrue(c.moveToFirst()); assertEquals("跨五版验证", c.getString(0))
+        // 跨 6 个版本迁移后，最早的 todo 数据仍在
+        db.query("SELECT title FROM todo WHERE uuid = 'todo-v6'").use { c ->
+            assertTrue(c.moveToFirst()); assertEquals("跨六版验证", c.getString(0))
         }
         // 各新表都已就绪
         assertEquals(0, db.count("anniversary"))
@@ -185,6 +206,7 @@ class MigrationTest {
         assertEquals(0, db.count("note"))
         assertEquals(0, db.count("note_fts"))
         assertEquals(0, db.count("question"))
+        assertEquals(0, db.count("question_fts"))
         assertEquals(0, db.count("transaction_record"))
         assertEquals(0, db.count("category"))
         assertEquals(0, db.count("budget"))

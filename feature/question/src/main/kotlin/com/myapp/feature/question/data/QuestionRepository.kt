@@ -84,7 +84,7 @@ class QuestionRepository @Inject constructor(
 
     /**
      * 列表查询。三种模式（与 NoteRepository 同口径）：
-     *   - query 非空：LIKE 全文搜索（V1 不上 FTS）
+     *   - query 非空：FTS 全文搜索
      *   - tag 非空：按标签筛选
      *   - 都空：全部
      *
@@ -92,7 +92,7 @@ class QuestionRepository @Inject constructor(
      */
     fun observe(query: String?, tag: String?): Flow<List<Question>> {
         val source = when {
-            !query.isNullOrBlank() -> dao.search(query)
+            !query.isNullOrBlank() -> dao.search(escapeFtsQuery(query))
             !tag.isNullOrBlank() -> dao.observeByTag(tag)
             else -> dao.observeAll()
         }
@@ -192,6 +192,15 @@ class QuestionRepository @Inject constructor(
             content = buildNoteContent(question.content, question.answer),
             tags = tags,
         )
+    }
+
+    /**
+     * FTS MATCH 转义，与 NoteRepository 同一套做法：用户输入直接做 MATCH 会把
+     * 空格当 AND、把 `* : "` 当操作符。用 `"..."` 短语包裹，内部的 `"` 双写转义。
+     */
+    private fun escapeFtsQuery(query: String): String {
+        val escaped = query.replace("\"", "\"\"")
+        return "\"$escaped\""
     }
 }
 

@@ -199,10 +199,44 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+/**
+ * v6：给疑问加 FTS 全文搜索虚表（PRD 3.5），取代 V1 的 LIKE 搜索。
+ *
+ * 与 [MIGRATION_2_3] 的 note_fts 同一套模式：FTS4 外部内容表
+ * （`contentEntity = QuestionEntity`），只索引 `content` 一列，Room 自动生成
+ * 4 个同步触发器。触发器 SQL 必须与 `schemas/6.json` 的 `createSql` 逐字符一致。
+ *
+ * 与 note_fts 不同的一点：note 表和 note_fts 是同一条迁移里一起建的，从没有
+ * 历史数据；question 表从 v4 就存在，这条迁移之前的所有旧疑问都得靠
+ * `INSERT INTO question_fts(question_fts) VALUES('rebuild')` 补建索引，
+ * 否则触发器只对之后的增删改生效，老数据会「建了表但搜不到」。
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS `question_fts` USING FTS4(`content` TEXT NOT NULL, content=`question`)",
+        )
+        db.execSQL(
+            "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_question_fts_BEFORE_UPDATE BEFORE UPDATE ON `question` BEGIN DELETE FROM `question_fts` WHERE `docid`=OLD.`rowid`; END",
+        )
+        db.execSQL(
+            "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_question_fts_BEFORE_DELETE BEFORE DELETE ON `question` BEGIN DELETE FROM `question_fts` WHERE `docid`=OLD.`rowid`; END",
+        )
+        db.execSQL(
+            "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_question_fts_AFTER_UPDATE AFTER UPDATE ON `question` BEGIN INSERT INTO `question_fts`(`docid`, `content`) VALUES (NEW.`rowid`, NEW.`content`); END",
+        )
+        db.execSQL(
+            "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_question_fts_AFTER_INSERT AFTER INSERT ON `question` BEGIN INSERT INTO `question_fts`(`docid`, `content`) VALUES (NEW.`rowid`, NEW.`content`); END",
+        )
+        db.execSQL("INSERT INTO `question_fts`(`question_fts`) VALUES('rebuild')")
+    }
+}
+
 /** 注册到 Room 的全部迁移。新增迁移后记得加进这个数组。 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
     MIGRATION_3_4,
     MIGRATION_4_5,
+    MIGRATION_5_6,
 )
