@@ -11,13 +11,13 @@ import com.myapp.core.designsystem.theme.MotionTokens
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.anniversary.navigation.anniversaryGraph
 import com.myapp.feature.home.HomeScreen
+import com.myapp.feature.knowledge.navigation.knowledgeGraph
 import com.myapp.feature.ledger.navigation.ledgerGraph
 import com.myapp.feature.note.navigation.noteGraph
 import com.myapp.feature.period.navigation.periodGraph
 import com.myapp.feature.question.navigation.questionGraph
 import com.myapp.feature.settings.navigation.settingsGraph
 import com.myapp.feature.todo.navigation.todoGraph
-import com.myapp.ui.PlaceholderScreen
 
 /**
  * 全局导航图。
@@ -66,19 +66,12 @@ fun AppNavHost(
         noteGraph(onNavigate = onNavigate, onBack = onBack)
         questionGraph(onNavigate = onNavigate, onBack = onBack)
         ledgerGraph(onNavigate = onNavigate, onBack = onBack, navController = navController)
+        knowledgeGraph(onNavigate = onNavigate, onBack = onBack)
         settingsGraph(
             onNavigate = onNavigate,
             onBack = onBack,
             onKeepAliveComplete = onKeepAliveComplete,
             isFirstRun = startDestination::class == Route.KeepAliveCheck::class,
         )
-
-        // 未实现 feature 的占位页（PRD 3.11 底部导航 5 栏结构稳定）
-        composable<Route.Feed> {
-            PlaceholderScreen(
-                title = "资讯",
-                description = "飞书公开页与 RSS，M6/M8 落地后启用",
-            )
-        }
     }
 }

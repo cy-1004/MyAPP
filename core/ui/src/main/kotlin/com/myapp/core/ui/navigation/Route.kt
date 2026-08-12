@@ -2,14 +2,14 @@ package com.myapp.core.ui.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.outlined.Article
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.serialization.Serializable
@@ -104,8 +104,17 @@ sealed interface Route {
     @Serializable
     data object Feed : Route
 
+    /** 知识源管理列表（PRD 3.7）。 */
     @Serializable
     data object KnowledgeSources : Route
+
+    /** 知识源编辑页。id 为 0 表示新建，与待办/纪念日/分类同一套约定。 */
+    @Serializable
+    data class KnowledgeSourceDetail(val id: Long = 0L) : Route
+
+    /** 知识源阅读页：内嵌 WebView + 自定义工具栏（PRD 3.7）。 */
+    @Serializable
+    data class KnowledgeReader(val sourceId: Long) : Route
 
     @Serializable
     data object Settings : Route
@@ -133,6 +142,13 @@ enum class TopLevelDestination(
     HOME(Route.Home, "首页", Icons.Filled.Home, Icons.Outlined.Home),
     RECORDS(Route.NoteList, "记录", Icons.AutoMirrored.Filled.Article, Icons.AutoMirrored.Outlined.Article),
     LEDGER(Route.Ledger, "记账", Icons.Filled.AccountBalanceWallet, Icons.Outlined.AccountBalanceWallet),
-    FEED(Route.Feed, "资讯", Icons.Filled.Newspaper, Icons.Outlined.Newspaper),
+    // 占用原「资讯」tab 位置（PRD 3.11 底部导航 5 栏结构不变）：M8 RSS 落地前，
+    // 先给 M6 知识库用；M8 落地时再决定 tab 内部怎么分（比如加个顶部子 tab）。
+    KNOWLEDGE(
+        Route.KnowledgeSources,
+        "知识",
+        Icons.AutoMirrored.Filled.MenuBook,
+        Icons.AutoMirrored.Outlined.MenuBook,
+    ),
     SETTINGS(Route.Settings, "我的", Icons.Filled.Settings, Icons.Outlined.Settings),
 }

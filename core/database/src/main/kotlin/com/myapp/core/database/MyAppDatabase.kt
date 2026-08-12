@@ -6,6 +6,8 @@ import androidx.room.TypeConverters
 import com.myapp.core.database.dao.AnniversaryDao
 import com.myapp.core.database.dao.BudgetDao
 import com.myapp.core.database.dao.CategoryDao
+import com.myapp.core.database.dao.KnowledgeContentDao
+import com.myapp.core.database.dao.KnowledgeSourceDao
 import com.myapp.core.database.dao.NoteDao
 import com.myapp.core.database.dao.PeriodDao
 import com.myapp.core.database.dao.QuestionDao
@@ -14,6 +16,9 @@ import com.myapp.core.database.dao.TransactionDao
 import com.myapp.core.database.model.AnniversaryEntity
 import com.myapp.core.database.model.BudgetEntity
 import com.myapp.core.database.model.CategoryEntity
+import com.myapp.core.database.model.KnowledgeContentEntity
+import com.myapp.core.database.model.KnowledgeContentFtsEntity
+import com.myapp.core.database.model.KnowledgeSourceEntity
 import com.myapp.core.database.model.NoteEntity
 import com.myapp.core.database.model.NoteFtsEntity
 import com.myapp.core.database.model.PeriodRecordEntity
@@ -52,12 +57,16 @@ import com.myapp.core.database.model.TransactionEntity
         TransactionEntity::class,
         CategoryEntity::class,
         BudgetEntity::class,
+        // M6 知识库（PRD 3.7）：
+        KnowledgeSourceEntity::class,
+        KnowledgeContentEntity::class,
+        KnowledgeContentFtsEntity::class,
         // 后续按 PRD 交付计划逐个加入：
         // BudgetCategoryEntity, MerchantCategoryMapEntity, ParseRuleEntity,
-        // KnowledgeSourceEntity, KnowledgeContentEntity, KnowledgeReviewEntity,
+        // KnowledgeReviewEntity（M7 每日知识推送）,
         // RssFeedEntity, RssArticleEntity,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -70,6 +79,8 @@ abstract class MyAppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun categoryDao(): CategoryDao
     abstract fun budgetDao(): BudgetDao
+    abstract fun knowledgeSourceDao(): KnowledgeSourceDao
+    abstract fun knowledgeContentDao(): KnowledgeContentDao
 }
 
 internal const val DATABASE_NAME = "myapp.db"

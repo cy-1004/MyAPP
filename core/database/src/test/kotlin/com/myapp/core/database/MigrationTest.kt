@@ -24,7 +24,8 @@ import org.robolectric.annotation.Config
  * 2. 数据保留：每个迁移前后都插一条 todo，迁移后查回来，证明 ALTER/CREATE 不动旧表数据
  * 3. 新表就绪：迁移后新表存在且为空（用 SELECT COUNT(*) = 0 间接验证）
  *
- * **覆盖范围**：v1->v2 / v2->v3 / v3->v4 / v4->v5 / v5->v6 单步 + v1->v4 / v1->v5 / v1->v6 全链路。
+ * **覆盖范围**：v1->v2 / v2->v3 / v3->v4 / v4->v5 / v5->v6 / v6->v7 单步 +
+ * v1->v4 / v1->v5 / v1->v6 / v1->v7 全链路。
  *
  * **运行环境**：Robolectric（JVM 单测，无需真机）。@Config(sdk = [35]) 是因为
  * Robolectric 4.14.1 支持到 SDK 35，targetSdk 36 还没支持，显式降一档跑。
@@ -186,19 +187,40 @@ class MigrationTest {
     }
 
     @Test
-    fun `v1_to_v6_全链路迁移_数据完整保留`() {
+    fun `v6_to_v7_新增knowledge_source与knowledge_content_旧数据不受影响`() {
+        helper.createDatabase(dbName, 6).apply {
+            insertQuestion(uuid = "q-6", content = "v6 疑问", createdAt = 6_000L)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(dbName, 7, true, MIGRATION_6_7)
+
+        // 旧数据保留
+        db.query("SELECT content FROM question WHERE uuid = 'q-6'").use { c ->
+            assertTrue(c.moveToFirst()); assertEquals("v6 疑问", c.getString(0))
+        }
+        // 新表已建好且为空（knowledge_source/knowledge_content 是同一条迁移里一起建的新表，
+        // 不像 question_fts 那样有历史数据要 rebuild）
+        assertEquals(0, db.count("knowledge_source"))
+        assertEquals(0, db.count("knowledge_content"))
+        assertEquals(0, db.count("knowledge_content_fts"))
+        db.close()
+    }
+
+    @Test
+    fun `v1_to_v7_全链路迁移_数据完整保留`() {
         helper.createDatabase(dbName, 1).apply {
-            insertTodo(uuid = "todo-v6", title = "跨六版验证", createdAt = 1L)
+            insertTodo(uuid = "todo-v7", title = "跨七版验证", createdAt = 1L)
             close()
         }
 
         val db = helper.runMigrationsAndValidate(
-            dbName, 6, true, *ALL_MIGRATIONS,
+            dbName, 7, true, *ALL_MIGRATIONS,
         )
 
-        // 跨 6 个版本迁移后，最早的 todo 数据仍在
-        db.query("SELECT title FROM todo WHERE uuid = 'todo-v6'").use { c ->
-            assertTrue(c.moveToFirst()); assertEquals("跨六版验证", c.getString(0))
+        // 跨 7 个版本迁移后，最早的 todo 数据仍在
+        db.query("SELECT title FROM todo WHERE uuid = 'todo-v7'").use { c ->
+            assertTrue(c.moveToFirst()); assertEquals("跨七版验证", c.getString(0))
         }
         // 各新表都已就绪
         assertEquals(0, db.count("anniversary"))
@@ -210,6 +232,9 @@ class MigrationTest {
         assertEquals(0, db.count("transaction_record"))
         assertEquals(0, db.count("category"))
         assertEquals(0, db.count("budget"))
+        assertEquals(0, db.count("knowledge_source"))
+        assertEquals(0, db.count("knowledge_content"))
+        assertEquals(0, db.count("knowledge_content_fts"))
         db.close()
     }
 

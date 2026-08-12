@@ -11,6 +11,8 @@ import com.myapp.core.database.MyAppDatabase
 import com.myapp.core.database.dao.AnniversaryDao
 import com.myapp.core.database.dao.BudgetDao
 import com.myapp.core.database.dao.CategoryDao
+import com.myapp.core.database.dao.KnowledgeContentDao
+import com.myapp.core.database.dao.KnowledgeSourceDao
 import com.myapp.core.database.dao.NoteDao
 import com.myapp.core.database.dao.PeriodDao
 import com.myapp.core.database.dao.QuestionDao
@@ -79,4 +81,10 @@ object DatabaseModule {
 
     @Provides
     fun provideBudgetDao(db: MyAppDatabase): BudgetDao = db.budgetDao()
+
+    @Provides
+    fun provideKnowledgeSourceDao(db: MyAppDatabase): KnowledgeSourceDao = db.knowledgeSourceDao()
+
+    @Provides
+    fun provideKnowledgeContentDao(db: MyAppDatabase): KnowledgeContentDao = db.knowledgeContentDao()
 }

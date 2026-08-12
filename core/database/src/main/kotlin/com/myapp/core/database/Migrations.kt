@@ -232,6 +232,77 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+/**
+ * v7：加入 M6 知识库两张表 + FTS 全文搜索虚表（PRD 3.7）。
+ *
+ * 与 [MIGRATION_2_3] 的 note/note_fts 同一套模式：`knowledge_content` 和
+ * `knowledge_content_fts` 在同一条迁移里一起建，没有历史数据要补，
+ * 不需要 [MIGRATION_5_6] 那种 `rebuild` 步骤。
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `knowledge_source` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`uuid` TEXT NOT NULL, " +
+                "`url` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`group_name` TEXT NOT NULL, " +
+                "`pinned` INTEGER NOT NULL, " +
+                "`enabled` INTEGER NOT NULL, " +
+                "`sort_order` INTEGER NOT NULL, " +
+                "`fetch_status` TEXT NOT NULL, " +
+                "`last_fetch_at` INTEGER, " +
+                "`created_at` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL, " +
+                "`deleted_at` INTEGER)",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_knowledge_source_uuid` ON `knowledge_source` (`uuid`)")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_knowledge_source_sort_order` ON `knowledge_source` (`sort_order`)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_knowledge_source_pinned` ON `knowledge_source` (`pinned`)")
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `knowledge_content` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`source_id` INTEGER NOT NULL, " +
+                "`section_index` INTEGER NOT NULL, " +
+                "`section_title` TEXT, " +
+                "`content_text` TEXT NOT NULL, " +
+                "`fetched_at` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_knowledge_content_source_id` ON `knowledge_content` (`source_id`)",
+        )
+
+        db.execSQL(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS `knowledge_content_fts` USING FTS4(" +
+                "`content_text` TEXT NOT NULL, content=`knowledge_content`)",
+        )
+        db.execSQL(
+            "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_knowledge_content_fts_BEFORE_UPDATE " +
+                "BEFORE UPDATE ON `knowledge_content` BEGIN DELETE FROM `knowledge_content_fts` " +
+                "WHERE `docid`=OLD.`rowid`; END",
+        )
+        db.execSQL(
+            "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_knowledge_content_fts_BEFORE_DELETE " +
+                "BEFORE DELETE ON `knowledge_content` BEGIN DELETE FROM `knowledge_content_fts` " +
+                "WHERE `docid`=OLD.`rowid`; END",
+        )
+        db.execSQL(
+            "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_knowledge_content_fts_AFTER_UPDATE " +
+                "AFTER UPDATE ON `knowledge_content` BEGIN INSERT INTO `knowledge_content_fts`(`docid`, " +
+                "`content_text`) VALUES (NEW.`rowid`, NEW.`content_text`); END",
+        )
+        db.execSQL(
+            "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_knowledge_content_fts_AFTER_INSERT " +
+                "AFTER INSERT ON `knowledge_content` BEGIN INSERT INTO `knowledge_content_fts`(`docid`, " +
+                "`content_text`) VALUES (NEW.`rowid`, NEW.`content_text`); END",
+        )
+    }
+}
+
 /** 注册到 Room 的全部迁移。新增迁移后记得加进这个数组。 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_1_2,
@@ -239,4 +310,5 @@ val ALL_MIGRATIONS = arrayOf(
     MIGRATION_3_4,
     MIGRATION_4_5,
     MIGRATION_5_6,
+    MIGRATION_6_7,
 )
