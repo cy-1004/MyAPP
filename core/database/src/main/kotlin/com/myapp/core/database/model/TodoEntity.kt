@@ -54,6 +54,10 @@ data class TodoEntity(
     @ColumnInfo(name = "done_at")
     val doneAt: Long? = null,
 
+    /** 完成时填写的备注（PRD 3.3）。为空表示无备注。撤销完成时清空。 */
+    @ColumnInfo(name = "completion_note")
+    val completionNote: String? = null,
+
     @ColumnInfo(name = "created_at")
     val createdAt: Long,
 

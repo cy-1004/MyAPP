@@ -127,8 +127,8 @@ interface TodoDao {
     @Update
     suspend fun update(todo: TodoEntity)
 
-    @Query("UPDATE todo SET done = :done, done_at = :doneAt, updated_at = :now WHERE id = :id")
-    suspend fun setDone(id: Long, done: Boolean, doneAt: Long?, now: Long)
+    @Query("UPDATE todo SET done = :done, done_at = :doneAt, completion_note = :completionNote, updated_at = :now WHERE id = :id")
+    suspend fun setDone(id: Long, done: Boolean, doneAt: Long?, completionNote: String?, now: Long)
 
     /** 软删除：保留 tombstone，为将来同步留退路（PRD 4.7.7）。 */
     @Query("UPDATE todo SET deleted_at = :now, updated_at = :now WHERE id = :id")

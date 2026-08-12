@@ -23,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -139,6 +140,34 @@ fun TodoEditScreen(
                     .focusRequester(titleFocus)
                     .bringIntoViewOnFocus(),
             )
+
+            // 完成备注（只读展示）：已完成态才有，未完成或新建态不显示。
+            // 不可编辑 -- 它是「完成那一刻」的备注，编辑待办本身时不应改动它。
+            // 先取到局部变量：displayCompletionNote 是别的模块里的 public 属性，
+            // Kotlin 不对跨模块的 public 属性做智能转换（无法保证不是自定义 getter）。
+            val completionNote = draft.displayCompletionNote
+            if (!draft.isNew && !completionNote.isNullOrBlank()) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(Spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    ) {
+                        Text(
+                            text = "完成备注",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.appColors.textSecondary,
+                        )
+                        Text(
+                            text = completionNote,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = draft.note,

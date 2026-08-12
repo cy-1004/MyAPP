@@ -27,6 +27,7 @@ data class Todo(
     val repeatRule: String?,
     val done: Boolean,
     val doneAt: Long?,
+    val completionNote: String?,
     val isOverdue: Boolean,
 )
 
@@ -38,6 +39,8 @@ data class TodoDraft(
     val dueAt: Long? = null,
     val priority: Int = Priority.NORMAL,
     val repeatRule: String = RepeatRule.NONE,
+    /** 只读展示字段：完成备注。编辑表单不修改它，仅用于详情页回看。 */
+    val displayCompletionNote: String? = null,
 ) {
     val isNew: Boolean get() = id == 0L
     val canSave: Boolean get() = title.isNotBlank()
@@ -76,6 +79,7 @@ private fun TodoEntity.toDomain(now: Long): Todo {
         repeatRule = repeatRule,
         done = done,
         doneAt = doneAt,
+        completionNote = completionNote,
         isOverdue = due != null && !done && due < now,
     )
 }
@@ -129,6 +133,7 @@ class TodoRepository @Inject constructor(
             dueAt = entity.dueAt,
             priority = entity.priority,
             repeatRule = entity.repeatRule.orEmpty(),
+            displayCompletionNote = entity.completionNote,
         )
     }
 
@@ -179,10 +184,29 @@ class TodoRepository @Inject constructor(
      * 同时是 [TodoToggleWriter] 契约实现：桌面小组件的圆圈勾选也走这里，
      * 保证重复任务生成下一次的行为与 App 内一致。
      */
-    override suspend fun setDone(id: Long, done: Boolean): Unit = withContext(io) {
+    override suspend fun setDone(id: Long, done: Boolean) {
+        if (done) complete(id, completionNote = null) else uncomplete(id)
+    }
+
+    /**
+     * 完成一条待办，可选填一句完成备注。
+     *
+     * 主页点击待办 -> 弹确认对话框 -> 填备注 -> 确认走这条。
+     * Widget 的简单勾选经 [setDone] 也最终调到这里（completionNote 传 null），
+     * 保证重复任务生成下一次的行为与 App 内一致。
+     */
+    suspend fun complete(id: Long, completionNote: String?): Unit = withContext(io) {
         val now = AppTime.now()
-        dao.setDone(id = id, done = done, doneAt = if (done) now else null, now = now)
-        if (done) spawnNextOccurrence(id, now)
+        val normalized = completionNote?.trim()?.ifBlank { null }
+        dao.setDone(id = id, done = true, doneAt = now, completionNote = normalized, now = now)
+        spawnNextOccurrence(id, now)
+        widgetRefreshNotifier.notifyDataChanged()
+    }
+
+    /** 取消完成。撤销完成时清空 completionNote，避免下次再完成时旧备注残留。 */
+    private suspend fun uncomplete(id: Long): Unit = withContext(io) {
+        val now = AppTime.now()
+        dao.setDone(id = id, done = false, doneAt = null, completionNote = null, now = now)
         widgetRefreshNotifier.notifyDataChanged()
     }
 

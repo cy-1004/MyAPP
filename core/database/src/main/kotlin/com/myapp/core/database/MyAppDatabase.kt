@@ -72,7 +72,7 @@ import com.myapp.core.database.model.TransactionEntity
         // BudgetCategoryEntity, MerchantCategoryMapEntity, ParseRuleEntity,
         // KnowledgeReviewEntity（M7 每日知识推送）,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

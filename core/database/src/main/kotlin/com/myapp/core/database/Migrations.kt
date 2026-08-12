@@ -355,6 +355,18 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
+/**
+ * 待办完成备注（PRD 3.3）：`todo` 表加 `completion_note` 列。
+ *
+ * 主页点击待办改成弹确认对话框再完成（防止误触），同时允许填一句完成情况。
+ * 撤销完成时清空，避免下次再完成时旧备注残留。
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `todo` ADD COLUMN `completion_note` TEXT")
+    }
+}
+
 /** 注册到 Room 的全部迁移。新增迁移后记得加进这个数组。 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_1_2,
@@ -364,4 +376,5 @@ val ALL_MIGRATIONS = arrayOf(
     MIGRATION_5_6,
     MIGRATION_6_7,
     MIGRATION_7_8,
+    MIGRATION_8_9,
 )

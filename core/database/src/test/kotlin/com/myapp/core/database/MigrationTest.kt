@@ -225,19 +225,39 @@ class MigrationTest {
     }
 
     @Test
-    fun `v1_to_v8_全链路迁移_数据完整保留`() {
+    fun `v8_to_v9_新增todo_completion_note列_旧数据保留`() {
+        helper.createDatabase(dbName, 8).apply {
+            insertTodo(uuid = "todo-8", title = "v8 待办", createdAt = 8_000L)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(dbName, 9, true, MIGRATION_8_9)
+
+        // 旧数据保留
+        db.query("SELECT title FROM todo WHERE uuid = 'todo-8'").use { c ->
+            assertTrue(c.moveToFirst()); assertEquals("v8 待办", c.getString(0))
+        }
+        // 新列存在且默认 NULL（旧 todo 没填过完成备注）
+        db.query("SELECT completion_note FROM todo WHERE uuid = 'todo-8'").use { c ->
+            assertTrue(c.moveToFirst()); assertTrue(c.isNull(0))
+        }
+        db.close()
+    }
+
+    @Test
+    fun `v1_to_v9_全链路迁移_数据完整保留`() {
         helper.createDatabase(dbName, 1).apply {
-            insertTodo(uuid = "todo-v8", title = "跨八版验证", createdAt = 1L)
+            insertTodo(uuid = "todo-v9", title = "跨九版验证", createdAt = 1L)
             close()
         }
 
         val db = helper.runMigrationsAndValidate(
-            dbName, 8, true, *ALL_MIGRATIONS,
+            dbName, 9, true, *ALL_MIGRATIONS,
         )
 
-        // 跨 8 个版本迁移后，最早的 todo 数据仍在
-        db.query("SELECT title FROM todo WHERE uuid = 'todo-v8'").use { c ->
-            assertTrue(c.moveToFirst()); assertEquals("跨八版验证", c.getString(0))
+        // 跨 9 个版本迁移后，最早的 todo 数据仍在
+        db.query("SELECT title FROM todo WHERE uuid = 'todo-v9'").use { c ->
+            assertTrue(c.moveToFirst()); assertEquals("跨九版验证", c.getString(0))
         }
         // 各新表都已就绪
         assertEquals(0, db.count("anniversary"))
