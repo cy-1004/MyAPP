@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.myapp.core.designsystem.component.LocalBottomBarHeight
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
 import com.myapp.core.ui.navigation.Route
@@ -69,7 +70,12 @@ fun SettingsScreen(
                 start = Spacing.xl,
                 end = Spacing.xl,
                 top = innerPadding.calculateTopPadding() + Spacing.md,
-                bottom = innerPadding.calculateBottomPadding() + Spacing.xxl,
+                // 底栏是 MyApp 里浮在 Box 上的覆盖层，不是本 Scaffold 的 bottomBar，
+                // 所以 innerPadding 里**没有**它的高度——只用 innerPadding 的话列表底部会被
+                // 底栏挡住（本页条目变多后「关于」就整个看不见了）。
+                // LocalBottomBarHeight 是底栏实测高度且已含导航栏 inset，不要再叠加
+                // innerPadding.calculateBottomPadding()，否则底部 inset 会算两遍。
+                bottom = LocalBottomBarHeight.current + Spacing.xxl,
             ),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
@@ -123,6 +129,14 @@ fun SettingsScreen(
                     description = "检查后台限制设置，确保提醒与记账能稳定运行",
                     enabled = true,
                     onClick = { onNavigate(Route.KeepAliveCheck) },
+                )
+            }
+            item(key = "cloud_backup") {
+                SettingsItem(
+                    title = "云备份",
+                    description = "每天一次加密上传，换机时可从云端恢复",
+                    enabled = true,
+                    onClick = { onNavigate(Route.CloudBackup) },
                 )
             }
             item(key = "appearance") {

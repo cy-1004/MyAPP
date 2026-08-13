@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.common.time.BudgetCycle
 import com.myapp.feature.ledger.data.Budget
+import com.myapp.feature.ledger.data.BudgetCategoryRepository
 import com.myapp.feature.ledger.data.BudgetRepository
 import com.myapp.feature.ledger.data.LedgerPrefsStore
 import com.myapp.feature.ledger.data.LedgerRepository
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -25,15 +27,24 @@ import kotlinx.coroutines.launch
 /**
  * 保存完成事件。
  *
- * [savedAmountCents] 为本次记录的金额（分），[remainingCents] 是保存后本周期剩余预算。
- * 没设预算时 remainingCents = null，UI 显示「已记录 ￥X」不报剩余。
+ * [savedAmountCents] 为本次记录的金额（分），[remainingCents] 是保存后本周期剩余预算，
+ * 没设预算时为 null（UI 显示「已记录 ￥X」不报剩余）。[isOverBudget] 是总预算超支标记，
+ * 超支时 UI 把「剩余」文案换成「已超支」。[categoryRemainingCents]/[categoryOverBudget]
+ * 只在命中的分类设过预算上限时非空——PRD 3.6.2「命中分类预算时同时显示该分类剩余」。
  */
-data class SavedEvent(val savedAmountCents: Long, val remainingCents: Long?)
+data class SavedEvent(
+    val savedAmountCents: Long,
+    val remainingCents: Long?,
+    val isOverBudget: Boolean = false,
+    val categoryRemainingCents: Long? = null,
+    val categoryOverBudget: Boolean = false,
+)
 
 @HiltViewModel
 class LedgerListViewModel @Inject constructor(
     private val repository: LedgerRepository,
     private val budgetRepository: BudgetRepository,
+    private val budgetCategoryRepository: BudgetCategoryRepository,
     private val saveEvents: LedgerSaveEvents,
     private val prefs: LedgerPrefsStore,
     private val notifier: AutoLedgerNotifier,
@@ -42,7 +53,7 @@ class LedgerListViewModel @Inject constructor(
     init {
         // 编辑页保存事件经单例 Channel 跨 entry 传递，与 SavedStateHandle 无关
         viewModelScope.launch {
-            saveEvents.events.collect { amountCents -> onSaved(amountCents) }
+            saveEvents.events.collect { saved -> onSaved(saved.amountCents, saved.categoryId) }
         }
     }
 
@@ -77,8 +88,8 @@ class LedgerListViewModel @Inject constructor(
     private val _savedEvents = Channel<SavedEvent>(Channel.BUFFERED)
     val savedEvents: Flow<SavedEvent> = _savedEvents.receiveAsFlow()
 
-    /** 收到编辑页传回的金额后，查预算 + 本期已花，算剩余并发出 Snackbar 事件。 */
-    fun onSaved(amountCents: Long) {
+    /** 收到编辑页传回的金额 + 分类后，查预算/分类上限 + 本期已花，算剩余并发出 Snackbar 事件。 */
+    fun onSaved(amountCents: Long, categoryId: Long) {
         viewModelScope.launch {
             val budget = budgetRepository.getCurrent() ?: run {
                 _savedEvents.send(SavedEvent(amountCents, null))
@@ -87,7 +98,28 @@ class LedgerListViewModel @Inject constructor(
             val cycle = BudgetCycle.currentCycleRange(budget.cycleStartDay)
             val spent = repository.sumExpenseInRange(cycle.first, cycle.last + 1)
             val remaining = budget.totalAmountCents - spent
-            _savedEvents.send(SavedEvent(amountCents, remaining))
+
+            val cap = budgetCategoryRepository.observeCaps().first()[categoryId]
+            var categoryRemaining: Long? = null
+            var categoryOver = false
+            if (cap != null) {
+                val categorySpent = repository.observeCategoryExpenses(cycle.first, cycle.last + 1)
+                    .first()
+                    .firstOrNull { it.categoryId == categoryId }
+                    ?.totalCents ?: 0L
+                categoryRemaining = cap - categorySpent
+                categoryOver = categorySpent > cap
+            }
+
+            _savedEvents.send(
+                SavedEvent(
+                    savedAmountCents = amountCents,
+                    remainingCents = remaining,
+                    isOverBudget = remaining < 0L,
+                    categoryRemainingCents = categoryRemaining,
+                    categoryOverBudget = categoryOver,
+                ),
+            )
         }
     }
 

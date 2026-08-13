@@ -126,4 +126,28 @@ class BudgetInsightsTest {
         assertEquals(0L, pace.idealSpentCents)
         assertTrue(pace.isOnTrack(0L))
     }
+
+    /** 第 10 天花了 1000，按 30 天周期外推：1000 / 10 * 30 = 3000。 */
+    @Test
+    fun predictedTotal_extrapolatesBySpeed() {
+        assertEquals(3000_00L, BudgetInsights.predictedTotalCents(1000_00L, elapsedDays = 10, totalDays = 30))
+    }
+
+    /** elapsedDays<=0 没有速率可言，直接返回已支出兜底，不外推。 */
+    @Test
+    fun predictedTotal_guardsZeroElapsedDays() {
+        assertEquals(500_00L, BudgetInsights.predictedTotalCents(500_00L, elapsedDays = 0, totalDays = 30))
+    }
+
+    @Test
+    fun predictedOverspend_returnsPositiveDiffWhenOverBudget() {
+        assertEquals(500_00L, BudgetInsights.predictedOverspendCents(3500_00L, 3000_00L))
+    }
+
+    /** 预测值没超预算（含刚好持平）时不返回超支金额——负数/零没有警示意义。 */
+    @Test
+    fun predictedOverspend_null_whenNotOverBudget() {
+        assertEquals(null, BudgetInsights.predictedOverspendCents(2500_00L, 3000_00L))
+        assertEquals(null, BudgetInsights.predictedOverspendCents(3000_00L, 3000_00L))
+    }
 }

@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Edit
@@ -27,16 +29,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.myapp.core.common.time.AppTime
 import com.myapp.core.designsystem.component.AppCard
 import com.myapp.core.designsystem.component.EmptyState
 import com.myapp.core.designsystem.component.LocalBottomBarHeight
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
+import com.myapp.feature.ledger.data.CyclePerformance
 import com.myapp.feature.ledger.ui.BudgetDialog
 import com.myapp.feature.ledger.ui.CategoryExpenseRow
 import com.myapp.feature.ledger.ui.ProgressTrack
@@ -63,6 +69,7 @@ fun BudgetScreen(
     viewModel: BudgetViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val history by viewModel.history.collectAsStateWithLifecycle()
     var showDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -112,6 +119,9 @@ fun BudgetScreen(
             if (state.budget != null) {
                 item(key = "overview") { OverviewCard(state) }
                 item(key = "pace") { PaceCard(state) }
+                if (history.isNotEmpty()) {
+                    item(key = "history") { HistoryCard(history) }
+                }
                 item(key = "categories-header") {
                     Text(
                         text = "本期支出去向",
@@ -232,6 +242,84 @@ private fun PaceCard(state: BudgetUiState) {
         )
     }
 }
+
+/**
+ * 历史达成：近 12 期支出柱状图，超支的那期标红（PRD 3.6.2）。
+ *
+ * 三条口径写在这里，改之前先想清楚：
+ * - **柱高的分母是这 12 期里的最大值**，不是各期自己的预算。用各自预算当分母的话，
+ *   预算调过的期之间高度就不可比了，而这张图的用途就是横向比。
+ * - **没设过预算的期画灰柱**，不判超支——那时候用户根本没有目标，
+ *   拿现在的预算去追认是伪造历史。
+ * - 花光算达成不算超支，只有真的超过才红。
+ */
+@Composable
+private fun HistoryCard(history: List<CyclePerformance>) {
+    val maxCents = (history.maxOfOrNull { it.spentCents } ?: 0L).coerceAtLeast(1L)
+    val overCount = history.count { it.isOverBudget }
+    AppCard {
+        Text(
+            text = "近${history.size}期达成情况",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.appColors.textSecondary,
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = Spacing.lg),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            history.forEach { cycle ->
+                val barColor = when {
+                    cycle.isOverBudget -> MaterialTheme.appColors.danger
+                    cycle.budgetCents == null -> MaterialTheme.appColors.textTertiary.copy(alpha = 0.3f)
+                    else -> MaterialTheme.colorScheme.primary
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .height(HISTORY_BAR_MAX_HEIGHT)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.BottomCenter,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(HISTORY_BAR_WIDTH)
+                                .height(HISTORY_BAR_MAX_HEIGHT * cycle.fractionOf(maxCents))
+                                .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                                .background(barColor),
+                        )
+                    }
+                    Text(
+                        // 12 根柱子并排，「8月」两个字会挤在一起，只留月份数字
+                        text = AppTime.run { cycle.start.toLocalDate() }.monthValue.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.appColors.textTertiary,
+                        modifier = Modifier.padding(top = Spacing.xs),
+                    )
+                }
+            }
+        }
+        Text(
+            text = if (overCount > 0) "有 $overCount 期超支（红柱）" else "还没有超支的周期",
+            style = MaterialTheme.typography.bodySmall,
+            color = if (overCount > 0) MaterialTheme.appColors.danger else MaterialTheme.appColors.success,
+            modifier = Modifier.padding(top = Spacing.sm),
+        )
+        Text(
+            text = "灰柱 = 那一期还没设预算，只有支出没有目标，不算超支",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.appColors.textTertiary,
+        )
+    }
+}
+
+private val HISTORY_BAR_MAX_HEIGHT = 72.dp
+private val HISTORY_BAR_WIDTH = 10.dp
 
 /** 没设过预算时对话框的默认发薪日，与首页卡片/列表页同一个默认值。 */
 private const val DEFAULT_CYCLE_START_DAY = 10

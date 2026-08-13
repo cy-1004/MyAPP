@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 /**
  * 经期记录（PRD 3.2）。
@@ -12,6 +13,7 @@ import java.util.UUID
  * 与 [AnniversaryEntity] 同理，日期存 epochDay。
  * [endDate] 为空表示「进行中」——这是刻意允许的状态，记录开始时不该逼用户先填结束日。
  */
+@Serializable
 @Entity(
     tableName = "period_record",
     indices = [

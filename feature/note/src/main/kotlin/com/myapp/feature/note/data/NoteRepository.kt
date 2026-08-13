@@ -2,6 +2,8 @@ package com.myapp.feature.note.data
 
 import android.content.Context
 import android.net.Uri
+import com.myapp.core.common.contract.NoteBrowser
+import com.myapp.core.common.contract.NoteSnippet
 import com.myapp.core.common.contract.NoteWriter
 import com.myapp.core.common.di.IoDispatcher
 import com.myapp.core.common.time.AppTime
@@ -66,7 +68,7 @@ class NoteRepository @Inject constructor(
     private val dao: NoteDao,
     @ApplicationContext private val context: Context,
     @IoDispatcher private val io: CoroutineDispatcher,
-) : NoteWriter {
+) : NoteWriter, NoteBrowser {
 
     /**
      * 列表查询。三种模式：
@@ -184,6 +186,11 @@ class NoteRepository @Inject constructor(
      */
     override suspend fun createNote(content: String, tags: List<String>): Long =
         save(NoteDraft(content = content, tags = tags))
+
+    /** 实现 [NoteBrowser]：M7 知识池为空/提取失败时的降级取材（PRD 3.8）。 */
+    override suspend fun randomNoteSnippet(): NoteSnippet? = withContext(io) {
+        dao.getRandom()?.let { NoteSnippet(noteId = it.id, text = it.content) }
+    }
 
     /**
      * FTS MATCH 转义：用户输入直接做 MATCH 会把空格当 AND、把 `* : "` 当操作符。

@@ -9,9 +9,13 @@ import com.myapp.core.database.Converters
 import com.myapp.core.database.DATABASE_NAME
 import com.myapp.core.database.MyAppDatabase
 import com.myapp.core.database.dao.AnniversaryDao
+import com.myapp.core.database.dao.BackupDao
+import com.myapp.core.database.dao.BudgetAlertStateDao
+import com.myapp.core.database.dao.BudgetCategoryDao
 import com.myapp.core.database.dao.BudgetDao
 import com.myapp.core.database.dao.CategoryDao
 import com.myapp.core.database.dao.KnowledgeContentDao
+import com.myapp.core.database.dao.KnowledgeReviewDao
 import com.myapp.core.database.dao.KnowledgeSourceDao
 import com.myapp.core.database.dao.NoteDao
 import com.myapp.core.database.dao.PeriodDao
@@ -91,8 +95,20 @@ object DatabaseModule {
     fun provideKnowledgeContentDao(db: MyAppDatabase): KnowledgeContentDao = db.knowledgeContentDao()
 
     @Provides
+    fun provideKnowledgeReviewDao(db: MyAppDatabase): KnowledgeReviewDao = db.knowledgeReviewDao()
+
+    @Provides
+    fun provideBudgetCategoryDao(db: MyAppDatabase): BudgetCategoryDao = db.budgetCategoryDao()
+
+    @Provides
+    fun provideBudgetAlertStateDao(db: MyAppDatabase): BudgetAlertStateDao = db.budgetAlertStateDao()
+
+    @Provides
     fun provideRssSourceDao(db: MyAppDatabase): RssSourceDao = db.rssSourceDao()
 
     @Provides
     fun provideRssArticleDao(db: MyAppDatabase): RssArticleDao = db.rssArticleDao()
+
+    @Provides
+    fun provideBackupDao(db: MyAppDatabase): BackupDao = db.backupDao()
 }

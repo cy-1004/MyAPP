@@ -1,5 +1,6 @@
 package com.myapp.feature.note.data
 
+import com.myapp.core.common.contract.NoteBrowser
 import com.myapp.core.common.contract.NoteWriter
 import dagger.Binds
 import dagger.Module
@@ -23,4 +24,8 @@ abstract class NoteModule {
     @Binds
     @Singleton
     abstract fun bindNoteWriter(impl: NoteRepository): NoteWriter
+
+    @Binds
+    @Singleton
+    abstract fun bindNoteBrowser(impl: NoteRepository): NoteBrowser
 }

@@ -131,6 +131,15 @@ private fun BudgetContent(state: LedgerCardState) {
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.appColors.textTertiary,
         )
+
+        // 按当前节奏预测到期超支（PRD 3.6.2），没有超支风险时不显示这行
+        state.predictedOverspendCents?.let { overspend ->
+            Text(
+                text = "按当前节奏，预计超支 ${overspend.yuanWithSymbol()}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.appColors.warning,
+            )
+        }
     }
 }
 

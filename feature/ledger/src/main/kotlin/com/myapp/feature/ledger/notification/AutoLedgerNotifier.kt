@@ -39,14 +39,22 @@ class AutoLedgerNotifier @Inject constructor(
         merchant: String?,
         category: String?,
         remainingCents: Long?,
+        categoryRemainingCents: Long? = null,
     ) {
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
         ensureChannel()
 
         val sign = if (direction == TransactionDirection.INCOME) "+" else "-"
         val merchantPart = merchant?.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()
-        val remainingPart = remainingCents?.let { "，本期剩余 ${it.yuanWithSymbol()}" }.orEmpty()
-        val text = "已记录 $sign${amountCents.yuanWithSymbol()}$merchantPart$remainingPart"
+        val remainingPart = remainingCents?.let {
+            if (it < 0L) "，本期已超支 ${(-it).yuanWithSymbol()}" else "，本期剩余 ${it.yuanWithSymbol()}"
+        }.orEmpty()
+        // 命中分类预算时追加该分类剩余（PRD 3.6.2「同时显示该分类剩余」）
+        val categoryPart = categoryRemainingCents?.let {
+            val label = category?.takeIf { name -> name.isNotBlank() } ?: "该分类"
+            if (it < 0L) "，$label 已超支 ${(-it).yuanWithSymbol()}" else "，$label 剩余 ${it.yuanWithSymbol()}"
+        }.orEmpty()
+        val text = "已记录 $sign${amountCents.yuanWithSymbol()}$merchantPart$remainingPart$categoryPart"
 
         val contentIntent = Intent().apply {
             setClassName(context, "com.myapp.MainActivity")

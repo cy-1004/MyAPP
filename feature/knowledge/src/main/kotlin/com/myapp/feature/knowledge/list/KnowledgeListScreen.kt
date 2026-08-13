@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Star
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.FloatingActionButton
@@ -101,7 +103,7 @@ fun KnowledgeListScreen(
                 title = { Text("知识库", style = MaterialTheme.typography.titleLarge) },
                 actions = {
                     IconButton(onClick = { onNavigate(Route.KnowledgeExtractSettings) }) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "正文提取设置")
+                        Icon(Icons.Outlined.Settings, contentDescription = "知识库设置")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -215,6 +217,7 @@ private fun SourceGroupList(
                     onDelete = { viewModel.delete(row) },
                     onToggleEnabled = { on -> viewModel.setEnabled(row.source.id, on) },
                     onTogglePinned = { pinned -> viewModel.setPinned(row.source.id, pinned) },
+                    onToggleInPool = { inPool -> viewModel.setInPool(row.source.id, inPool) },
                     onMove = { delta -> viewModel.move(row.source.id, delta) },
                 )
             }
@@ -245,6 +248,7 @@ private fun KnowledgeSourceRowItem(
     onDelete: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
     onTogglePinned: (Boolean) -> Unit,
+    onToggleInPool: (Boolean) -> Unit,
     onMove: (Int) -> Unit,
 ) {
     val currentDelete by rememberUpdatedState(onDelete)
@@ -318,6 +322,16 @@ private fun KnowledgeSourceRowItem(
                         imageVector = if (row.source.pinned) Icons.Filled.Star else Icons.Outlined.Star,
                         contentDescription = if (row.source.pinned) "取消置顶" else "置顶",
                         tint = if (row.source.pinned) MaterialTheme.colorScheme.primary else MaterialTheme.appColors.textTertiary,
+                    )
+                }
+
+                // 知识池（M7 每日知识点候选）与置顶是两个独立开关：
+                // 置顶管首页快捷入口，知识池管会不会被随机推送复习。
+                IconButton(onClick = { onToggleInPool(!row.source.inPool) }) {
+                    Icon(
+                        imageVector = if (row.source.inPool) Icons.Filled.AutoAwesome else Icons.Outlined.AutoAwesome,
+                        contentDescription = if (row.source.inPool) "移出知识池" else "加入知识池",
+                        tint = if (row.source.inPool) MaterialTheme.colorScheme.primary else MaterialTheme.appColors.textTertiary,
                     )
                 }
 

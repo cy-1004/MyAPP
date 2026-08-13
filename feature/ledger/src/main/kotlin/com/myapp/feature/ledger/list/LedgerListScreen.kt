@@ -74,7 +74,7 @@ import com.myapp.feature.ledger.ui.yuanWithSymbol
  * 记账列表（PRD 3.6.3）。
  *
  * 顶部齿轮进预算设置；FAB + 进新建；列表按日期分组显示，
- * 保存成功后 Snackbar 报「已记录 ￥X，本期剩余 ￥Y」。
+ * 保存成功后 Snackbar 报「已记录 ￥X，本期剩余 ￥Y（命中分类预算时追加分类剩余/超支）」。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,11 +89,22 @@ fun LedgerListScreen(
     // onSaved 触发的 Snackbar 事件
     LaunchedEffect(Unit) {
         viewModel.savedEvents.collect { event ->
-            val msg = if (event.remainingCents != null) {
-                val remainingText = event.remainingCents.yuanWithSymbol()
-                "已记录 ${event.savedAmountCents.yuanWithSymbol()}，本期剩余 $remainingText"
-            } else {
-                "已记录 ${event.savedAmountCents.yuanWithSymbol()}"
+            val msg = buildString {
+                append("已记录 ${event.savedAmountCents.yuanWithSymbol()}")
+                if (event.remainingCents != null) {
+                    if (event.isOverBudget) {
+                        append("，本期已超支 ${(-event.remainingCents).yuanWithSymbol()}")
+                    } else {
+                        append("，本期剩余 ${event.remainingCents.yuanWithSymbol()}")
+                    }
+                }
+                if (event.categoryRemainingCents != null) {
+                    if (event.categoryOverBudget) {
+                        append("，该分类已超支 ${(-event.categoryRemainingCents).yuanWithSymbol()}")
+                    } else {
+                        append("，该分类剩余 ${event.categoryRemainingCents.yuanWithSymbol()}")
+                    }
+                }
             }
             snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
         }

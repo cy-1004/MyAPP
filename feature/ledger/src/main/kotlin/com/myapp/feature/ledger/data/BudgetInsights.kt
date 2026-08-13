@@ -66,6 +66,24 @@ object BudgetInsights {
         val ideal = budgetCents * progress.elapsedDays / progress.totalDays
         return Pace(idealSpentCents = ideal, diffCents = spentCents - ideal)
     }
+
+    /**
+     * 按日均消耗预测到期总支出（PRD 3.6.2）：`已支出 ÷ 已过天数 × 周期总天数`。
+     * `elapsedDays<=0` 时没有速率可言，直接返回已支出兜底（不外推）。
+     */
+    fun predictedTotalCents(spentCents: Long, elapsedDays: Int, totalDays: Int): Long {
+        if (elapsedDays <= 0) return spentCents
+        return spentCents * totalDays / elapsedDays
+    }
+
+    /**
+     * 预测超支金额。只有预测值真的超过预算才返回正数，否则 null——
+     * 「预计超支 -￥50」没有意义，那种情况就是不显示这行文案。
+     */
+    fun predictedOverspendCents(predictedTotalCents: Long, budgetCents: Long): Long? {
+        val overspend = predictedTotalCents - budgetCents
+        return if (overspend > 0L) overspend else null
+    }
 }
 
 /** 周期天数进度。[remainingDays] 含今天，最小为 1。 */

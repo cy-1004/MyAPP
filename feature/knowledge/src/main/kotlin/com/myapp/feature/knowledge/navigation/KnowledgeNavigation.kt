@@ -3,6 +3,7 @@ package com.myapp.feature.knowledge.navigation
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.myapp.core.ui.navigation.Route
+import com.myapp.feature.knowledge.data.KnowledgeDailyTarget
 import com.myapp.feature.knowledge.data.KnowledgeShareTarget
 import com.myapp.feature.knowledge.extract.settings.KnowledgeExtractSettingsScreen
 import com.myapp.feature.knowledge.list.KnowledgeListScreen
@@ -20,6 +21,9 @@ import dagger.hilt.components.SingletonComponent
 @InstallIn(SingletonComponent::class)
 interface KnowledgeGraphEntryPoint {
     fun knowledgeShareTarget(): KnowledgeShareTarget
+
+    /** 每日知识点通知点击 → 阅读页/笔记详情深链（PRD 3.8），同一套模式。 */
+    fun knowledgeDailyTarget(): KnowledgeDailyTarget
 }
 
 fun NavGraphBuilder.knowledgeGraph(

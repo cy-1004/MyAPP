@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -54,6 +55,46 @@ class AppPreferences @Inject constructor(
 
     suspend fun setPeriodReminderLeadDays(days: Int) {
         store.edit { it[Keys.PERIOD_REMINDER_LEAD_DAYS] = days }
+    }
+
+    // ---- 云备份（PRD 3.13）----
+    /** 是否开启每日自动云备份。默认关闭：没登录云账号时它本来也跑不起来。 */
+    val cloudBackupEnabled: Flow<Boolean> = store.data.map {
+        it[Keys.CLOUD_BACKUP_ENABLED] ?: false
+    }
+
+    /** 上次备份成功的时刻（epochMilli）；0 = 从未成功备份过。 */
+    val cloudBackupLastSuccessAt: Flow<Long> = store.data.map {
+        it[Keys.CLOUD_BACKUP_LAST_SUCCESS_AT] ?: 0L
+    }
+
+    /**
+     * 上次备份失败的原因，空串 = 上次是成功的。
+     *
+     * 必须持久化：后台任务失败时用户不在场，只有把错误留下来，
+     * 下次打开设置页才能看到「备份其实已经连续失败了」，而不是以为一直在正常备份。
+     */
+    val cloudBackupLastError: Flow<String> = read(Keys.CLOUD_BACKUP_LAST_ERROR, "")
+
+    suspend fun setCloudBackupEnabled(enabled: Boolean) {
+        store.edit { it[Keys.CLOUD_BACKUP_ENABLED] = enabled }
+    }
+
+    suspend fun setCloudBackupLastSuccessAt(epochMillis: Long) {
+        store.edit { it[Keys.CLOUD_BACKUP_LAST_SUCCESS_AT] = epochMillis }
+    }
+
+    suspend fun setCloudBackupLastError(message: String) =
+        write(Keys.CLOUD_BACKUP_LAST_ERROR, message)
+
+    // ---- 知识点每日推送（PRD 3.8）----
+    /** 默认关闭：PRD 原文「可选每日定时通知推送」，用户需主动开启。固定 08:00，不做可配置时间。 */
+    val knowledgeDailyPushEnabled: Flow<Boolean> = store.data.map {
+        it[Keys.KNOWLEDGE_DAILY_PUSH_ENABLED] ?: false
+    }
+
+    suspend fun setKnowledgeDailyPushEnabled(enabled: Boolean) {
+        store.edit { it[Keys.KNOWLEDGE_DAILY_PUSH_ENABLED] = enabled }
     }
 
     /**
@@ -110,5 +151,9 @@ class AppPreferences @Inject constructor(
         val DYNAMIC_COLOR_ENABLED = booleanPreferencesKey("app.dynamicColorEnabled")
         val HOME_CARD_CONFIG = stringPreferencesKey("home.cardConfig")
         val PERIOD_REMINDER_LEAD_DAYS = intPreferencesKey("period.reminderLeadDays")
+        val CLOUD_BACKUP_ENABLED = booleanPreferencesKey("backup.cloudEnabled")
+        val CLOUD_BACKUP_LAST_SUCCESS_AT = longPreferencesKey("backup.lastSuccessAt")
+        val CLOUD_BACKUP_LAST_ERROR = stringPreferencesKey("backup.lastError")
+        val KNOWLEDGE_DAILY_PUSH_ENABLED = booleanPreferencesKey("knowledge.dailyPushEnabled")
     }
 }

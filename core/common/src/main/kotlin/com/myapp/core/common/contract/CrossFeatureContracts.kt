@@ -71,13 +71,32 @@ interface KnowledgeSource {
     suspend fun pickDailyKnowledge(): KnowledgeItem?
 }
 
+/**
+ * @param sourceId 知识源 id；[isNoteFallback]=true 时改存笔记 id（两者是不同的 id 空间，
+ *   但对调用方来说都是"点击后要打开的那个东西的 id"，复用一个字段没必要拆两个）
+ * @param title 知识点标题（抓取到的正文标题，不一定等于 [sourceName]）
+ * @param sourceName 来源页面名（用户给知识源起的名字，PRD 3.8「来源页面名」）
+ */
 data class KnowledgeItem(
     val sourceId: Long,
     val sectionIndex: Int,
     val title: String,
     val summary: String,
+    val sourceName: String,
     val url: String?,
+    /** true = 知识池为空/提取失败时从笔记降级来的（PRD 3.8），此时 [sourceId] 是笔记 id、[url]=null。 */
+    val isNoteFallback: Boolean = false,
 )
+
+/**
+ * 供知识池为空时降级取材（PRD 3.8：「保证卡片永不空白」）。由 :feature:note 实现。
+ * 只读，跟 [NoteWriter] 分开——两个不同方向的能力没必要挤进一个接口。
+ */
+interface NoteBrowser {
+    suspend fun randomNoteSnippet(): NoteSnippet?
+}
+
+data class NoteSnippet(val noteId: Long, val text: String)
 
 /**
  * 同步能力占位（PRD 4.7.4）。

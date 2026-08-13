@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.myapp.feature.knowledge.data.KnowledgeDailyDestination
 import com.myapp.feature.knowledge.navigation.KnowledgeGraphEntryPoint
 import com.myapp.feature.ledger.data.LedgerDeepLink
 import com.myapp.feature.ledger.navigation.LedgerGraphEntryPoint
@@ -78,6 +79,24 @@ fun MyApp(initialRoute: Route) {
         }
     }
 
+    // 预算预警通知 → 预算页（MainActivity 写入，这里收集后导航）
+    val budgetAlertTarget = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            LedgerGraphEntryPoint::class.java,
+        ).budgetAlertTarget()
+    }
+    LaunchedEffect(Unit) {
+        budgetAlertTarget.target.collect { open ->
+            if (open) {
+                navController.navigate(Route.Budget) {
+                    launchSingleTop = true
+                }
+                budgetAlertTarget.consume()
+            }
+        }
+    }
+
     // 小组件点击 → 目标页面（MainActivity 写入，这里收集后导航）
     val widgetNavTarget = remember(context) {
         EntryPointAccessors.fromApplication(
@@ -113,6 +132,28 @@ fun MyApp(initialRoute: Route) {
                     launchSingleTop = true
                 }
                 knowledgeShareTarget.consume()
+            }
+        }
+    }
+
+    // 每日知识点通知点击 → 阅读页/笔记详情（MainActivity 写入，这里收集后导航）
+    val knowledgeDailyTarget = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            KnowledgeGraphEntryPoint::class.java,
+        ).knowledgeDailyTarget()
+    }
+    LaunchedEffect(Unit) {
+        knowledgeDailyTarget.target.collect { destination ->
+            if (destination != null) {
+                val route = when (destination) {
+                    is KnowledgeDailyDestination.Reader -> Route.KnowledgeReader(destination.sourceId)
+                    is KnowledgeDailyDestination.Note -> Route.NoteDetail(destination.noteId)
+                }
+                navController.navigate(route) {
+                    launchSingleTop = true
+                }
+                knowledgeDailyTarget.consume()
             }
         }
     }

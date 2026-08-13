@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * 预算（PRD 3.6.2）。
@@ -19,6 +20,7 @@ import androidx.room.PrimaryKey
  *
  * 无 uuid / deletedAt：预算是配置不是业务数据，不走同步、不软删，旧版本被新版本覆盖即可。
  */
+@Serializable
 @Entity(
     tableName = "budget",
     indices = [Index("effective_to")],

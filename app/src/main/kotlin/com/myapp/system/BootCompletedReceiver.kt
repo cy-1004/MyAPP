@@ -5,10 +5,13 @@ import android.content.Context
 import android.content.Intent
 import com.myapp.core.common.contract.ReminderScheduler
 import com.myapp.core.common.di.ApplicationScope
+import com.myapp.core.datastore.AppPreferences
+import com.myapp.feature.knowledge.notify.KnowledgeDailyReceiver
 import com.myapp.feature.widget.WidgetAlarmReceiver
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -22,6 +25,9 @@ class BootCompletedReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var reminderScheduler: ReminderScheduler
+
+    @Inject
+    lateinit var preferences: AppPreferences
 
     @Inject
     @ApplicationScope
@@ -40,6 +46,10 @@ class BootCompletedReceiver : BroadcastReceiver() {
                         reminderScheduler.rescheduleAll()
                         // 小组件午夜跨天刷新的精确闹钟，重启后要重建（PRD 3.10）
                         WidgetAlarmReceiver.scheduleMidnightAlarm(context)
+                        // 每日知识点推送闹钟，重启后要重建（PRD 3.8），仅在用户开启时才排
+                        if (preferences.knowledgeDailyPushEnabled.first()) {
+                            KnowledgeDailyReceiver.scheduleNext(context)
+                        }
                     } finally {
                         pendingResult.finish()
                     }

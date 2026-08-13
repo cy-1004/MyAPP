@@ -5,14 +5,18 @@ import com.myapp.core.common.contract.WidgetRefreshNotifier
 import com.myapp.core.common.di.IoDispatcher
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.common.time.BudgetCycle
+import com.myapp.core.database.dao.BudgetAlertStateDao
 import com.myapp.core.database.dao.CategoryDao
 import com.myapp.core.database.dao.TransactionDao
 import com.myapp.core.database.dao.TransactionWithCategory
+import com.myapp.core.database.model.BudgetAlertStateEntity
 import com.myapp.core.database.model.TransactionEntity
+import com.myapp.feature.ledger.notification.BudgetAlertNotifier
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
@@ -39,6 +43,8 @@ data class Transaction(
 /**
  * 某分类在一个区间内的支出汇总。预算视图的分类排行用。
  * [totalCents] 是该分类在区间内的支出合计（分），[count] 是笔数。
+ * [capCents] 是该分类的预算上限（PRD 3.6.2），null = 没设，`CategoryExpenseRow` 据此切换
+ * 「占总支出比例」与「相对上限的进度/超支标红」两种展示。
  */
 data class CategoryExpenseItem(
     val categoryId: Long,
@@ -47,6 +53,7 @@ data class CategoryExpenseItem(
     val color: String,
     val totalCents: Long,
     val count: Int,
+    val capCents: Long? = null,
 )
 
 /** 分类领域模型。 */
@@ -147,6 +154,10 @@ class LedgerRepository @Inject constructor(
     private val transactionDao: TransactionDao,
     private val categoryDao: CategoryDao,
     private val widgetRefreshNotifier: WidgetRefreshNotifier,
+    private val budgetRepository: BudgetRepository,
+    private val budgetCategoryRepository: BudgetCategoryRepository,
+    private val alertStateDao: BudgetAlertStateDao,
+    private val alertNotifier: BudgetAlertNotifier,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : LedgerWriter {
 
@@ -174,9 +185,12 @@ class LedgerRepository @Inject constructor(
     fun observeExpenseSumInRange(start: Long, endExclusive: Long): Flow<Long> =
         transactionDao.observeExpenseSumInRange(start, endExclusive)
 
-    /** 区间内按分类汇总的支出，金额倒序。预算视图的分类排行用。 */
+    /** 区间内按分类汇总的支出，金额倒序，带上各分类的预算上限。预算视图的分类排行用。 */
     fun observeCategoryExpenses(start: Long, endExclusive: Long): Flow<List<CategoryExpenseItem>> =
-        transactionDao.observeCategoryExpensesInRange(start, endExclusive).map { list ->
+        combine(
+            transactionDao.observeCategoryExpensesInRange(start, endExclusive),
+            budgetCategoryRepository.observeCaps(),
+        ) { list, caps ->
             list.map {
                 CategoryExpenseItem(
                     categoryId = it.categoryId,
@@ -185,6 +199,7 @@ class LedgerRepository @Inject constructor(
                     color = it.categoryColor,
                     totalCents = it.totalAmount,
                     count = it.count,
+                    capCents = caps[it.categoryId],
                 )
             }
         }
@@ -269,6 +284,7 @@ class LedgerRepository @Inject constructor(
             draft.id
         }
         widgetRefreshNotifier.notifyDataChanged()
+        if (draft.direction == TransactionDirection.EXPENSE) evaluateBudgetAlerts()
         id
     }
 
@@ -313,7 +329,38 @@ class LedgerRepository @Inject constructor(
             ),
         )
         widgetRefreshNotifier.notifyDataChanged()
+        if (direction == TransactionDirection.EXPENSE) evaluateBudgetAlerts()
         id
+    }
+
+    /**
+     * 预算预警评估（PRD 3.6.2）：[save]/[recordExpense] 是仅有的两个支出写入口，
+     * 在这里统一判定比在两条 UI 路径（手工记账/自动记账）各写一遍更不容易漏。
+     * 没设预算时直接跳过——没有分母就没有阈值可言。
+     */
+    private suspend fun evaluateBudgetAlerts() {
+        val budget = budgetRepository.getCurrent() ?: return
+        val cycle = BudgetCycle.currentCycleRange(budget.cycleStartDay)
+        val spentCents = transactionDao.sumExpenseInRange(cycle.first, cycle.last + 1)
+        val state = alertStateDao.getByCycleStart(cycle.first)
+        val alertState = AlertState(
+            notified80 = state?.notified80 ?: false,
+            notified100 = state?.notified100 ?: false,
+        )
+        val triggered = BudgetAlertEvaluator.evaluate(spentCents, budget.totalAmountCents, alertState)
+        if (triggered.isEmpty()) return
+
+        val now = AppTime.now()
+        alertStateDao.upsert(
+            BudgetAlertStateEntity(
+                id = state?.id ?: 0,
+                cycleStartEpoch = cycle.first,
+                notified80 = alertState.notified80 || triggered.contains(AlertKind.REACHED_80),
+                notified100 = alertState.notified100 || triggered.contains(AlertKind.REACHED_100),
+                updatedAt = now,
+            ),
+        )
+        triggered.forEach { kind -> alertNotifier.post(kind, spentCents, budget.totalAmountCents) }
     }
 
     /** 一键确认待确认条目（不改任何字段，仅状态流转）。 */

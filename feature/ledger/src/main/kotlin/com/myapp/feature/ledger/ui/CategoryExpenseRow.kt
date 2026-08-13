@@ -29,11 +29,22 @@ import com.myapp.feature.ledger.data.CategoryExpenseItem
 /**
  * 分类支出排行的一行：图标 + 名称 + 占比条 + 金额。预算视图与统计页共用
  * （两边都是「一个区间内按分类汇总的支出」，只是区间口径不同）。
+ *
+ * [CategoryExpenseItem.capCents] 非空时（PRD 3.6.2 分类预算），进度条语义从
+ * 「占本期总支出的比例」切换成「相对该分类上限的进度」，超过上限标红——
+ * 两种语义共用一个组件，靠 capCents 是否为 null 切换，不拆两个组件。
  */
 @Composable
 fun CategoryExpenseRow(item: CategoryExpenseItem, totalCents: Long) {
     val tint = categoryColor(item.color)
-    val fraction = if (totalCents <= 0L) 0f else (item.totalCents.toFloat() / totalCents).coerceIn(0f, 1f)
+    val cap = item.capCents
+    val overCap = cap != null && item.totalCents > cap
+    val fraction = when {
+        cap != null && cap > 0L -> (item.totalCents.toFloat() / cap).coerceIn(0f, 1f)
+        totalCents <= 0L -> 0f
+        else -> (item.totalCents.toFloat() / totalCents).coerceIn(0f, 1f)
+    }
+    val barColor = if (cap != null) progressColor(fraction, overCap) else tint
     AppCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -72,12 +83,17 @@ fun CategoryExpenseRow(item: CategoryExpenseItem, totalCents: Long) {
                     )
                 }
                 Box(modifier = Modifier.padding(vertical = Spacing.xs)) {
-                    ProgressTrack(fraction = fraction, color = tint)
+                    ProgressTrack(fraction = fraction, color = barColor)
                 }
                 Text(
-                    text = "${item.count} 笔 · 占比 ${(fraction * 100).toInt()}%",
+                    text = if (cap != null) {
+                        val suffix = if (overCap) "（超支）" else ""
+                        "${item.count} 笔 · 预算 ${cap.yuanWithSymbol()}$suffix"
+                    } else {
+                        "${item.count} 笔 · 占比 ${(fraction * 100).toInt()}%"
+                    },
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.appColors.textSecondary,
+                    color = if (overCap) MaterialTheme.appColors.danger else MaterialTheme.appColors.textSecondary,
                 )
             }
         }

@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 /**
  * 一笔账目（PRD 3.6.1）。
@@ -20,6 +21,7 @@ import java.util.UUID
  * Phase 1 只产生 `source = MANUAL` + `status = CONFIRMED` 的条目；
  * `PENDING` 与 `AUTO` 留给 Phase 3 自动记账。
  */
+@Serializable
 @Entity(
     tableName = "transaction_record",
     indices = [

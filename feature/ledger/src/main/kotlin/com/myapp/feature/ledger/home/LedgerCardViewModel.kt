@@ -2,7 +2,9 @@ package com.myapp.feature.ledger.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myapp.core.common.time.BudgetCycle
 import com.myapp.feature.ledger.data.Budget
+import com.myapp.feature.ledger.data.BudgetInsights
 import com.myapp.feature.ledger.data.BudgetRepository
 import com.myapp.feature.ledger.data.LedgerRepository
 import com.myapp.feature.ledger.data.TransactionDirection
@@ -44,12 +46,23 @@ class LedgerCardViewModel @Inject constructor(
                 }
             } else {
                 val cycleSpent = ledgerRepository.observeCurrentCycleSpending(budget.cycleStartDay)
+                val cycle = BudgetCycle.currentCycleRange(budget.cycleStartDay)
+                val progress = BudgetInsights.cycleProgress(cycle.first, cycle.last + 1)
                 combine(todaySpending, cycleSpent, pending) { today, spent, p ->
+                    val predictedTotal = BudgetInsights.predictedTotalCents(
+                        spentCents = spent,
+                        elapsedDays = progress.elapsedDays,
+                        totalDays = progress.totalDays,
+                    )
                     LedgerCardState(
                         todaySpendingCents = today,
                         budget = budget,
                         cycleSpentCents = spent,
                         pendingCount = p,
+                        predictedOverspendCents = BudgetInsights.predictedOverspendCents(
+                            predictedTotal,
+                            budget.totalAmountCents,
+                        ),
                     )
                 }
             }
@@ -66,6 +79,8 @@ data class LedgerCardState(
     val budget: Budget? = null,
     val cycleSpentCents: Long = 0L,
     val pendingCount: Int = 0,
+    /** 按当前节奏预测到期会超支多少（PRD 3.6.2），没超支风险时为 null。 */
+    val predictedOverspendCents: Long? = null,
 ) {
     /** 0~1 的进度比例。没设预算时返回 0（UI 走「未设预算」分支，不查这个值）。 */
     val progress: Float

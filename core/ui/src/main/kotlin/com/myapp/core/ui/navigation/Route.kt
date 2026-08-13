@@ -168,6 +168,10 @@ sealed interface Route {
     /** 关于（PRD 3.12）：版本信息 + 开源许可。 */
     @Serializable
     data object About : Route
+
+    /** 云备份（PRD 3.13）：登录云账号、每日自动备份、从历史备份恢复。 */
+    @Serializable
+    data object CloudBackup : Route
 }
 
 /** 底部导航的一级入口。 */

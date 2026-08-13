@@ -23,9 +23,12 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** 编辑完成后要做什么。Saved 带金额（分），列表页用来拼「已记录 ￥X，本期剩余 ￥Y」。 */
+/**
+ * 编辑完成后要做什么。Saved 带金额（分）+ 分类 id，列表页用来拼
+ * 「已记录 ￥X，本期剩余 ￥Y（该分类剩余 ￥Z）」。
+ */
 sealed interface LedgerEditResult {
-    data class Saved(val amountCents: Long) : LedgerEditResult
+    data class Saved(val amountCents: Long, val categoryId: Long) : LedgerEditResult
     data object Deleted : LedgerEditResult
 }
 
@@ -101,7 +104,7 @@ class LedgerEditViewModel @Inject constructor(
                 }
                 notifier.cancel(current.id)
             }
-            _results.send(LedgerEditResult.Saved(amount))
+            _results.send(LedgerEditResult.Saved(amount, current.categoryId))
         }
     }
 

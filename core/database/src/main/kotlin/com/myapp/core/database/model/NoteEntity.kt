@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 /**
  * 笔记（PRD 3.4）。
@@ -20,6 +21,7 @@ import java.util.UUID
  * 不设独立 `title` 字段：PRD 4.2 只有 `content`，列表展示时取首行非空文本作标题。
  * 加 title 字段会引入冗余迁移与「首行 vs title」的不一致问题。
  */
+@Serializable
 @Entity(
     tableName = "note",
     indices = [

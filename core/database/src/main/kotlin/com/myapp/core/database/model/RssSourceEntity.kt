@@ -5,11 +5,13 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 /**
  * RSS/Atom 订阅源（PRD 3.9）。字段形状与 [KnowledgeSourceEntity] 同一套约定
  * （uuid 同步预留、created/updated_at 审计、deleted_at 软删除支持撤销）。
  */
+@Serializable
 @Entity(
     tableName = "rss_source",
     indices = [

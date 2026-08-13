@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 /**
  * 疑问（PRD 3.5）。
@@ -23,6 +24,7 @@ import java.util.UUID
  * （PRD 4.2 紧接着就声明了 uuid / created_at / updated_at / deleted_at 约定）。
  * 疑问支持撤销删除（与笔记同），故需要 `deleted_at`。
  */
+@Serializable
 @Entity(
     tableName = "question",
     indices = [

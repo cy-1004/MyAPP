@@ -24,8 +24,7 @@ import org.robolectric.annotation.Config
  * 2. 数据保留：每个迁移前后都插一条 todo，迁移后查回来，证明 ALTER/CREATE 不动旧表数据
  * 3. 新表就绪：迁移后新表存在且为空（用 SELECT COUNT(*) = 0 间接验证）
  *
- * **覆盖范围**：v1->v2 / v2->v3 / v3->v4 / v4->v5 / v5->v6 / v6->v7 单步 +
- * v1->v4 / v1->v5 / v1->v6 / v1->v7 全链路。
+ * **覆盖范围**：v1->v2 ... v10->v11 单步 + v1->v11 全链路。
  *
  * **运行环境**：Robolectric（JVM 单测，无需真机）。@Config(sdk = [35]) 是因为
  * Robolectric 4.14.1 支持到 SDK 35，targetSdk 36 还没支持，显式降一档跑。
@@ -245,17 +244,49 @@ class MigrationTest {
     }
 
     @Test
-    fun `v1_to_v9_全链路迁移_数据完整保留`() {
+    fun `v9_to_v10_新增in_pool列_承接pinned值_knowledge_review表就绪`() {
+        helper.createDatabase(dbName, 9).apply {
+            execSQL(
+                "INSERT INTO `knowledge_source` (`uuid`, `url`, `title`, `group_name`, `pinned`, " +
+                    "`enabled`, `sort_order`, `fetch_status`, `created_at`, `updated_at`) " +
+                    "VALUES ('src-9', 'https://x.feishu.cn/a', 'v9 知识源', '', 1, 1, 1, 'SUCCESS', 9, 9)",
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(dbName, 10, true, MIGRATION_9_10)
+
+        // 老用户已置顶的知识源，升级后自动进入知识池，不会突然清空
+        db.query("SELECT in_pool FROM knowledge_source WHERE uuid = 'src-9'").use { c ->
+            assertTrue(c.moveToFirst()); assertEquals(1, c.getInt(0))
+        }
+        assertEquals(0, db.count("knowledge_review"))
+        db.close()
+    }
+
+    @Test
+    fun `v10_to_v11_新建budget_category与budget_alert_state表`() {
+        helper.createDatabase(dbName, 10).apply { close() }
+
+        val db = helper.runMigrationsAndValidate(dbName, 11, true, MIGRATION_10_11)
+
+        assertEquals(0, db.count("budget_category"))
+        assertEquals(0, db.count("budget_alert_state"))
+        db.close()
+    }
+
+    @Test
+    fun `v1_to_v11_全链路迁移_数据完整保留`() {
         helper.createDatabase(dbName, 1).apply {
             insertTodo(uuid = "todo-v9", title = "跨九版验证", createdAt = 1L)
             close()
         }
 
         val db = helper.runMigrationsAndValidate(
-            dbName, 9, true, *ALL_MIGRATIONS,
+            dbName, 11, true, *ALL_MIGRATIONS,
         )
 
-        // 跨 9 个版本迁移后，最早的 todo 数据仍在
+        // 跨 11 个版本迁移后，最早的 todo 数据仍在
         db.query("SELECT title FROM todo WHERE uuid = 'todo-v9'").use { c ->
             assertTrue(c.moveToFirst()); assertEquals("跨九版验证", c.getString(0))
         }
@@ -274,6 +305,9 @@ class MigrationTest {
         assertEquals(0, db.count("knowledge_content_fts"))
         assertEquals(0, db.count("rss_source"))
         assertEquals(0, db.count("rss_article"))
+        assertEquals(0, db.count("knowledge_review"))
+        assertEquals(0, db.count("budget_category"))
+        assertEquals(0, db.count("budget_alert_state"))
         db.close()
     }
 

@@ -5,9 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.myapp.core.ui.navigation.Route
+import com.myapp.feature.ledger.data.BudgetCategoryRepository
 import com.myapp.feature.ledger.data.CategoryDraft
 import com.myapp.feature.ledger.data.CategoryRepository
 import com.myapp.feature.ledger.data.CategorySaveResult
+import com.myapp.feature.ledger.data.parseAmountCents
+import com.myapp.feature.ledger.ui.formatCentsToYuan
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
@@ -15,6 +18,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -35,6 +39,7 @@ sealed interface CategoryEditResult {
 @HiltViewModel
 class CategoryDetailViewModel @Inject constructor(
     private val repository: CategoryRepository,
+    private val budgetCategoryRepository: BudgetCategoryRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -52,7 +57,10 @@ class CategoryDetailViewModel @Inject constructor(
     init {
         if (categoryId != 0L) {
             viewModelScope.launch {
-                _draft.value = repository.loadDraft(categoryId)
+                val cap = budgetCategoryRepository.observeCaps().first()[categoryId]
+                _draft.value = repository.loadDraft(categoryId).copy(
+                    capYuanText = cap?.let { formatCentsToYuan(it) } ?: "",
+                )
                 _loaded.value = true
             }
         }
@@ -69,12 +77,20 @@ class CategoryDetailViewModel @Inject constructor(
 
     fun updateColor(value: String) = _draft.update { it.copy(color = value) }
 
+    fun updateCap(value: String) {
+        _draft.update { it.copy(capYuanText = value.filter { ch -> ch.isDigit() || ch == '.' }) }
+    }
+
     fun save() {
         val current = _draft.value
         if (!current.canSave) return
         viewModelScope.launch {
-            val result = when (repository.save(current)) {
-                is CategorySaveResult.Saved -> CategoryEditResult.Saved
+            val result = when (val saved = repository.save(current)) {
+                is CategorySaveResult.Saved -> {
+                    val capCents = parseAmountCents(current.capYuanText) ?: 0L
+                    budgetCategoryRepository.setCap(saved.id, capCents)
+                    CategoryEditResult.Saved
+                }
                 CategorySaveResult.DuplicateName -> CategoryEditResult.DuplicateName
             }
             _results.send(result)

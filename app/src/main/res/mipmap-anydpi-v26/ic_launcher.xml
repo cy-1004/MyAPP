@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  前景 PNG 只占画布中心的 72/108，四周留透明，由背景色补满。
+  adaptive icon 的外圈 18dp 会被启动器的形状蒙版裁掉，图片放满 108 的话
+  主体边缘（耳朵、鸡块、杯子）会被切；缩到 72 则整张图完整可见。
+  背景色 = 图片自带的黄色底，所以看不出前景只有 72。
+  不设 monochrome：主题图标要的是单色剪影，照片派生不出来，
+  留空时启动器会退回用这张彩色图，比塞一个对不上的剪影好。
+-->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/splash_background" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
-    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_fg" />
 </adaptive-icon>

@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myapp.core.common.time.BudgetCycle
 import com.myapp.feature.ledger.data.Budget
+import com.myapp.feature.ledger.data.BudgetHistoryInsights
 import com.myapp.feature.ledger.data.BudgetInsights
 import com.myapp.feature.ledger.data.BudgetRepository
 import com.myapp.feature.ledger.data.CategoryExpenseItem
+import com.myapp.feature.ledger.data.CyclePerformance
 import com.myapp.feature.ledger.data.CycleProgress
 import com.myapp.feature.ledger.data.LedgerRepository
 import com.myapp.feature.ledger.data.Pace
@@ -99,9 +101,45 @@ class BudgetViewModel @Inject constructor(
             initialValue = BudgetUiState(),
         )
 
+    /**
+     * 近 [HISTORY_CYCLE_COUNT] 期的达成情况（PRD 3.6.2）。
+     *
+     * 单独一条订阅，不并进 [state]：它要按 12 个区间各查一次支出，
+     * 而 [state] 只关心本期，混在一起会让「改了发薪日」这种事把 13 组查询全部重跑。
+     *
+     * 发薪日取**当前**预算的（`observeAll` 正序，最后一行就是当前生效的那份）。
+     */
+    val history: StateFlow<List<CyclePerformance>> = budgetRepository.observeAll()
+        .flatMapLatest { budgets ->
+            val current = budgets.lastOrNull()
+            if (current == null) {
+                flowOf(emptyList())
+            } else {
+                val ranges = BudgetCycle.recentCycleRanges(
+                    cycleStartDay = current.cycleStartDay,
+                    count = HISTORY_CYCLE_COUNT,
+                )
+                combine(
+                    ranges.map { ledgerRepository.observeExpenseSumInRange(it.first, it.last + 1) },
+                ) { sums ->
+                    BudgetHistoryInsights.performances(ranges, sums.toList(), budgets)
+                }
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
     fun setBudget(cycleStartDay: Int, totalAmountCents: Long) {
         viewModelScope.launch {
             budgetRepository.setBudget(cycleStartDay, totalAmountCents)
         }
+    }
+
+    private companion object {
+        /** PRD 3.6.2 写的就是近 12 期。 */
+        const val HISTORY_CYCLE_COUNT = 12
     }
 }

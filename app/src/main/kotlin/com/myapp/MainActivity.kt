@@ -24,8 +24,14 @@ import com.myapp.core.designsystem.theme.MotionLevel
 import com.myapp.core.designsystem.theme.MyAppTheme
 import com.myapp.core.designsystem.theme.rememberSystemMotionLevel
 import com.myapp.core.ui.navigation.Route
+import com.myapp.feature.knowledge.data.KnowledgeDailyDestination
+import com.myapp.feature.knowledge.data.KnowledgeDailyTarget
 import com.myapp.feature.knowledge.data.KnowledgeShareTarget
+import com.myapp.feature.knowledge.notify.KnowledgeNotifierExtras
+import com.myapp.feature.settings.backup.CloudBackupScheduler
+import com.myapp.feature.ledger.data.BudgetAlertTarget
 import com.myapp.feature.ledger.data.LedgerDeepLink
+import com.myapp.feature.ledger.notification.BudgetAlertNotifierExtras
 import com.myapp.feature.ledger.notification.LedgerNotifierExtras
 import com.myapp.feature.widget.WidgetIntents
 import com.myapp.feature.widget.data.WidgetNavTarget
@@ -51,13 +57,22 @@ class MainActivity : ComponentActivity() {
     lateinit var appScope: kotlinx.coroutines.CoroutineScope
 
     @Inject
+    lateinit var cloudBackupScheduler: CloudBackupScheduler
+
+    @Inject
     lateinit var ledgerDeepLink: LedgerDeepLink
+
+    @Inject
+    lateinit var budgetAlertTarget: BudgetAlertTarget
 
     @Inject
     lateinit var widgetNavTarget: WidgetNavTarget
 
     @Inject
     lateinit var knowledgeShareTarget: KnowledgeShareTarget
+
+    @Inject
+    lateinit var knowledgeDailyTarget: KnowledgeDailyTarget
 
     /**
      * null = 未读取完，splash 挂住；
@@ -85,6 +100,10 @@ class MainActivity : ComponentActivity() {
         handleWidgetIntent(intent)
         // 系统分享菜单「分享到 MyAPP」：链接写入 KnowledgeShareTarget，MyApp 收集后导航到知识源新建页
         handleKnowledgeShareIntent(intent)
+        // 每日知识点通知点击：目标写入 KnowledgeDailyTarget，MyApp 收集后导航到阅读页/笔记详情
+        handleKnowledgeDailyIntent(intent)
+        // 预算预警通知点击：写入 BudgetAlertTarget，MyApp 收集后导航到预算页
+        handleBudgetAlertIntent(intent)
 
         // 3. 异步读 onboarding 标志；老用户升级直接写 true 跳过向导
         appScope.launch {
@@ -109,6 +128,20 @@ class MainActivity : ComponentActivity() {
             } catch (_: Throwable) {
                 // 读取失败时兜底为已完成，避免 splash 永不退出
                 keepAliveChecked = false
+            }
+        }
+
+        // 云备份补偿（PRD 3.13）：ColorOS 会冻结后台，WorkManager 周期任务不保证会跑，
+        // 所以每次启动检查一次「距上次成功备份是否超过一天」，超了就立刻补一次。
+        // 只要用户偶尔打开 App，每日备份就不会因为系统吃掉周期任务而长期中断。
+        appScope.launch {
+            runCatching {
+                if (appPreferences.cloudBackupEnabled.first()) {
+                    cloudBackupScheduler.ensureDailyBackup(
+                        lastSuccessAt = appPreferences.cloudBackupLastSuccessAt.first(),
+                        now = System.currentTimeMillis(),
+                    )
+                }
             }
         }
 
@@ -162,6 +195,13 @@ class MainActivity : ComponentActivity() {
         handleLedgerDeepLink(intent)
         handleWidgetIntent(intent)
         handleKnowledgeShareIntent(intent)
+        handleKnowledgeDailyIntent(intent)
+        handleBudgetAlertIntent(intent)
+    }
+
+    private fun handleBudgetAlertIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(BudgetAlertNotifierExtras.OPEN_BUDGET, false) != true) return
+        budgetAlertTarget.open()
     }
 
     private fun handleLedgerDeepLink(intent: Intent?) {
@@ -193,6 +233,23 @@ class MainActivity : ComponentActivity() {
         val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim() ?: return
         if (sharedText.isBlank()) return
         knowledgeShareTarget.share(sharedText)
+    }
+
+    /** 每日知识点通知点击拉起：id 是知识源还是笔记，看 [KnowledgeNotifierExtras.IS_NOTE]（PRD 3.8）。 */
+    private fun handleKnowledgeDailyIntent(intent: Intent?) {
+        if (intent?.extras?.containsKey(KnowledgeNotifierExtras.SOURCE_ID) != true) return
+        val id = intent?.extras?.get(KnowledgeNotifierExtras.SOURCE_ID).let { raw ->
+            when (raw) {
+                is Long -> raw
+                is Int -> raw.toLong()
+                else -> return
+            }
+        }
+        if (id <= 0L) return
+        val isNote = intent?.getBooleanExtra(KnowledgeNotifierExtras.IS_NOTE, false) ?: false
+        knowledgeDailyTarget.open(
+            if (isNote) KnowledgeDailyDestination.Note(id) else KnowledgeDailyDestination.Reader(id),
+        )
     }
 
     /**

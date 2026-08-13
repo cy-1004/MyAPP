@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * 知识源正文缓存（PRD 3.7）：无头 WebView 提取出的标题+纯文本正文。
@@ -14,6 +15,7 @@ import androidx.room.PrimaryKey
  *
  * 提取失败不建这行（[KnowledgeSourceEntity.fetchStatus] 记录失败原因），不存空正文占位。
  */
+@Serializable
 @Entity(
     tableName = "knowledge_content",
     indices = [Index("source_id")],

@@ -70,7 +70,7 @@ import java.time.ZoneOffset
 @Composable
 fun LedgerEditScreen(
     onBack: () -> Unit,
-    onSaved: (Long) -> Unit,
+    onSaved: (Long, Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LedgerEditViewModel = hiltViewModel(),
 ) {
@@ -81,7 +81,7 @@ fun LedgerEditScreen(
     LaunchedEffect(Unit) {
         viewModel.results.collect { result ->
             when (result) {
-                is LedgerEditResult.Saved -> onSaved(result.amountCents)
+                is LedgerEditResult.Saved -> onSaved(result.amountCents, result.categoryId)
                 LedgerEditResult.Deleted -> onBack()
             }
         }

@@ -90,6 +90,56 @@ class BudgetCycleTest {
         assertEquals(5L, days)
     }
 
+    @Test
+    fun `recentCycleRanges 正序返回且最后一期是当前期`() {
+        val today = LocalDate.of(2026, 8, 15)
+        val ranges = BudgetCycle.recentCycleRanges(cycleStartDay = 10, count = 12, today = today)
+        assertEquals(12, ranges.size)
+        assertEquals(BudgetCycle.currentCycleRange(10, today), ranges.last())
+        // 最旧的一期：当前期起点 8/10 往前推 11 个月 -> 2025/9/10
+        val firstStart = AppTime.run { ranges.first().first.toLocalDate() }
+        assertEquals(LocalDate.of(2025, 9, 10), firstStart)
+    }
+
+    @Test
+    fun `recentCycleRanges 首尾相接不留空档不重叠`() {
+        val ranges = BudgetCycle.recentCycleRanges(
+            cycleStartDay = 10,
+            count = 12,
+            today = LocalDate.of(2026, 8, 15),
+        )
+        // 上一期的 endExclusive 必须正好是下一期的 start，否则柱子之间会漏账或重复计账
+        ranges.zipWithNext { prev, next ->
+            assertEquals(prev.last + 1, next.first)
+        }
+    }
+
+    @Test
+    fun `recentCycleRanges 逐月推进 跨年且每期天数随月份变`() {
+        val ranges = BudgetCycle.recentCycleRanges(
+            cycleStartDay = 10,
+            count = 6,
+            today = LocalDate.of(2026, 3, 20),
+        )
+        val startDates = ranges.map { AppTime.run { it.first.toLocalDate() } }
+        assertEquals(
+            listOf(
+                LocalDate.of(2025, 10, 10),
+                LocalDate.of(2025, 11, 10),
+                LocalDate.of(2025, 12, 10),
+                LocalDate.of(2026, 1, 10),
+                LocalDate.of(2026, 2, 10),
+                LocalDate.of(2026, 3, 10),
+            ),
+            startDates,
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `recentCycleRanges count 为 0 抛异常`() {
+        BudgetCycle.recentCycleRanges(cycleStartDay = 10, count = 0, today = LocalDate.of(2026, 8, 15))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun `cycleStartDay 超出 28 抛异常`() {
         BudgetCycle.currentCycleRange(cycleStartDay = 29, today = LocalDate.of(2026, 8, 15))

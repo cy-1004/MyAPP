@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 /**
  * 待办（PRD 3.3）。
@@ -14,6 +15,7 @@ import java.util.UUID
  *   - `createdAt` / `updatedAt`：审计与同步冲突解决的基础。
  * 需要软删除的表另加 `deletedAt`（同步需要 tombstone，硬删除会导致删除操作无法传播）。
  */
+@Serializable
 @Entity(
     tableName = "todo",
     indices = [

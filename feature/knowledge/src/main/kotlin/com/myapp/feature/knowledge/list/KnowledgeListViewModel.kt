@@ -80,6 +80,10 @@ class KnowledgeListViewModel @Inject constructor(
         viewModelScope.launch { repository.setPinned(id, pinned) }
     }
 
+    fun setInPool(id: Long, inPool: Boolean) {
+        viewModelScope.launch { repository.setInPool(id, inPool) }
+    }
+
     fun delete(row: KnowledgeSourceRow) {
         viewModelScope.launch {
             repository.delete(row.source.id)

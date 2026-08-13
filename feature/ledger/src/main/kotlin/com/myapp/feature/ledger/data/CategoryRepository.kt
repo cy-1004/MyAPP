@@ -25,7 +25,13 @@ data class ManagedCategory(
     val isProtected: Boolean,
 )
 
-/** 分类编辑页的草稿。id 为 0 表示新建（与待办/规则同一套约定）。 */
+/**
+ * 分类编辑页的草稿。id 为 0 表示新建（与待办/规则同一套约定）。
+ *
+ * [capYuanText] 是分类预算上限（元，可留空 = 不设），跟 name/icon/color 一样在这个草稿里，
+ * 但保存时走独立的 [BudgetCategoryRepository]——那张表跟 category 表是两个不同的生命周期，
+ * 合到 [CategoryRepository.save] 里会让一个方法同时管两张表，职责不清。
+ */
 data class CategoryDraft(
     val id: Long = 0L,
     val name: String = "",
@@ -33,6 +39,7 @@ data class CategoryDraft(
     val color: String = DEFAULT_CATEGORY_COLOR,
     val isActive: Boolean = true,
     val isProtected: Boolean = false,
+    val capYuanText: String = "",
 ) {
     val isNew: Boolean get() = id == 0L
 

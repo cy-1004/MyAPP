@@ -367,6 +367,68 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
     }
 }
 
+/**
+ * M7 知识点每日推送（PRD 3.8）：`knowledge_source` 加 `in_pool` 列（承接老用户的 `pinned`
+ * 值，避免升级后知识池突然清空），新建 `knowledge_review` 表记录间隔复习状态。
+ */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `knowledge_source` ADD COLUMN `in_pool` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("UPDATE `knowledge_source` SET `in_pool` = `pinned`")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_knowledge_source_in_pool` ON `knowledge_source` (`in_pool`)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `knowledge_review` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`source_id` INTEGER NOT NULL, " +
+                "`section_index` INTEGER NOT NULL, " +
+                "`interval_level` INTEGER NOT NULL, " +
+                "`next_due_at` INTEGER NOT NULL, " +
+                "`last_shown_at` INTEGER, " +
+                "`created_at` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_knowledge_review_source_id_section_index` " +
+                "ON `knowledge_review` (`source_id`, `section_index`)",
+        )
+    }
+}
+
+/**
+ * 分类预算 + 预算预警（PRD 3.6.2）：新建 `budget_category`（分类上限，一分类一行）与
+ * `budget_alert_state`（80%/100% 通知去重，按周期起点为 key，见实体注释）。
+ */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `budget_category` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`category_id` INTEGER NOT NULL, " +
+                "`cap_cents` INTEGER NOT NULL, " +
+                "`created_at` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_category_category_id` " +
+                "ON `budget_category` (`category_id`)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `budget_alert_state` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`cycle_start_epoch` INTEGER NOT NULL, " +
+                "`notified_80` INTEGER NOT NULL, " +
+                "`notified_100` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_alert_state_cycle_start_epoch` " +
+                "ON `budget_alert_state` (`cycle_start_epoch`)",
+        )
+    }
+}
+
 /** 注册到 Room 的全部迁移。新增迁移后记得加进这个数组。 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_1_2,
@@ -377,4 +439,6 @@ val ALL_MIGRATIONS = arrayOf(
     MIGRATION_6_7,
     MIGRATION_7_8,
     MIGRATION_8_9,
+    MIGRATION_9_10,
+    MIGRATION_10_11,
 )

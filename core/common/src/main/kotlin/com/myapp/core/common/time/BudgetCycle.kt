@@ -48,6 +48,34 @@ object BudgetCycle {
         return start until endExclusive
     }
 
+    /**
+     * 最近 [count] 期的区间，**按时间正序**（最旧的在前，当前周期在最后）。
+     * 用于历史周期回顾（PRD 3.6.2 的近 12 期柱状图）。
+     *
+     * 全部用**当前的** [cycleStartDay] 往回推，不去还原「那一期当时的发薪日是几号」。
+     * 理由：发薪日改过之后，用历史发薪日切出来的区间长度不一（还可能重叠或留空档），
+     * 柱子之间就不可比了，而这张图的用途恰恰是横向比较。改发薪日是低频操作，
+     * 用统一口径重新切一遍历史，比画一排互相对不齐的柱子更有意义。
+     */
+    fun recentCycleRanges(
+        cycleStartDay: Int,
+        count: Int,
+        today: LocalDate = AppTime.today(),
+    ): List<LongRange> {
+        require(cycleStartDay in 1..28) { "cycleStartDay must be 1..28, got $cycleStartDay" }
+        require(count > 0) { "count must be > 0, got $count" }
+        val current = currentCycleRange(cycleStartDay, today)
+        val currentStartDate = AppTime.run { current.first.toLocalDate() }
+        // (count - 1) 期之前 → 当前期，逐月往前推。用 minusMonths 而不是减固定天数：
+        // 每期天数 28~31 不等，减天数会逐期漂移。
+        return (count - 1 downTo 0).map { back ->
+            val startDate = currentStartDate.minusMonths(back.toLong())
+            val start = AppTime.run { startDate.toEpochMilliAtStartOfDay() }
+            val endExclusive = AppTime.run { startDate.plusMonths(1).toEpochMilliAtStartOfDay() }
+            start until endExclusive
+        }
+    }
+
     /** 下一个发薪日距今的天数。用于「距 3 月 10 日还有 12 天」这类提示。 */
     fun daysUntilNextCycleStart(
         cycleStartDay: Int,

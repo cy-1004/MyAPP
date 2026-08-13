@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 /**
  * 知识源（PRD 3.7 / 4.2）：一个飞书公开网页链接。
@@ -16,16 +17,18 @@ import java.util.UUID
  * 取值 "PENDING" / "SUCCESS" / "FAILED" / "LOGIN_REQUIRED"，见
  * `com.myapp.feature.knowledge.data.KnowledgeFetchStatus`。
  *
- * `pinned` 兼「置顶」与「加入知识池」两个语义：M7（每日知识推送）尚未落地，
- * V1 不额外加 `in_pool` 字段，避免用户要在两个开关间选，等 M7 真正消费知识池
- * 时再评估是否要拆开。
+ * `pinned` 只管首页快捷入口；`inPool`（M7 新增）单独管是否进入每日知识点的候选池——
+ * 两者拆开是因为「想在首页快速打开」和「想每天被随机推送复习」是两件不同的事。
+ * 迁移时把老用户已有的 `pinned` 值原样拷给 `inPool`，避免升级后知识池突然清空。
  */
+@Serializable
 @Entity(
     tableName = "knowledge_source",
     indices = [
         Index("uuid", unique = true),
         Index("sort_order"),
         Index("pinned"),
+        Index("in_pool"),
     ],
 )
 data class KnowledgeSourceEntity(
@@ -42,6 +45,9 @@ data class KnowledgeSourceEntity(
     val groupName: String = "",
 
     val pinned: Boolean = false,
+
+    @ColumnInfo(name = "in_pool")
+    val inPool: Boolean = false,
 
     val enabled: Boolean = true,
 

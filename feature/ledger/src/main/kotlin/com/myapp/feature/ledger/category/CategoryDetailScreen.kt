@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -159,6 +161,19 @@ private fun CategoryDetailForm(
         },
         enabled = !draft.isProtected,
         singleLine = true,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier
+            .fillMaxWidth()
+            .bringIntoViewOnFocus(),
+    )
+
+    OutlinedTextField(
+        value = draft.capYuanText,
+        onValueChange = viewModel::updateCap,
+        label = { Text("分类预算上限（元，可留空）") },
+        supportingText = { Text("这个分类本期花超过这个数，预算页会标红提醒——各分类上限之和不用等于本期总预算") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         shape = MaterialTheme.shapes.small,
         modifier = Modifier
             .fillMaxWidth()

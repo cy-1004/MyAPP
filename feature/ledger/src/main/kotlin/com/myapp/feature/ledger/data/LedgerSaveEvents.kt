@@ -15,12 +15,15 @@ import kotlinx.coroutines.flow.receiveAsFlow
  * （真机实测：两个 handle 的 identity 不同，LaunchedEffect 永远收到 null）。
  * 改用进程内单例 Channel，与 entry 身份无关。
  */
+/** 一次保存的金额 + 分类 id，[LedgerListViewModel.onSaved] 用分类 id 查该分类的预算剩余。 */
+data class SavedTransaction(val amountCents: Long, val categoryId: Long)
+
 @Singleton
 class LedgerSaveEvents @Inject constructor() {
-    private val _events = Channel<Long>(Channel.BUFFERED)
-    val events: Flow<Long> = _events.receiveAsFlow()
+    private val _events = Channel<SavedTransaction>(Channel.BUFFERED)
+    val events: Flow<SavedTransaction> = _events.receiveAsFlow()
 
-    fun publish(amountCents: Long) {
-        _events.trySend(amountCents)
+    fun publish(amountCents: Long, categoryId: Long) {
+        _events.trySend(SavedTransaction(amountCents, categoryId))
     }
 }

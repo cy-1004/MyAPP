@@ -18,8 +18,10 @@ import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -48,13 +50,14 @@ fun KnowledgeExtractSettingsScreen(
     viewModel: KnowledgeExtractSettingsViewModel = hiltViewModel(),
 ) {
     val selectors by viewModel.selectors.collectAsStateWithLifecycle()
+    val dailyPushEnabled by viewModel.dailyPushEnabled.collectAsStateWithLifecycle()
     var newSelector by remember { mutableStateOf("") }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("正文提取设置") },
+                title = { Text("知识库设置") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -79,6 +82,25 @@ fun KnowledgeExtractSettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
+            item(key = "dailyPush") {
+                AppCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("每日知识点推送", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                text = "每天 08:00 从知识池挑一条推送通知，池空时从笔记里挑",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.appColors.textSecondary,
+                            )
+                        }
+                        Switch(checked = dailyPushEnabled, onCheckedChange = viewModel::setDailyPushEnabled)
+                    }
+                }
+            }
+
             item(key = "hint") {
                 Text(
                     text = "飞书文档正文的 CSS 选择器候选，按顺序依次尝试，" +

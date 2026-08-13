@@ -9,6 +9,7 @@ import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.ledger.budget.BudgetScreen
 import com.myapp.feature.ledger.category.CategoryDetailScreen
 import com.myapp.feature.ledger.category.CategoryListScreen
+import com.myapp.feature.ledger.data.BudgetAlertTarget
 import com.myapp.feature.ledger.data.LedgerDeepLink
 import com.myapp.feature.ledger.data.LedgerSaveEvents
 import com.myapp.feature.ledger.edit.LedgerEditScreen
@@ -41,6 +42,9 @@ interface LedgerGraphEntryPoint {
 
     /** 系统通知 → 确认页深链。MainActivity 写入，MyApp 收集后导航。 */
     fun ledgerDeepLink(): LedgerDeepLink
+
+    /** 预算预警通知 → 预算页深链。MainActivity 写入，MyApp 收集后导航。 */
+    fun budgetAlertTarget(): BudgetAlertTarget
 }
 
 fun NavGraphBuilder.ledgerGraph(
@@ -63,10 +67,10 @@ fun NavGraphBuilder.ledgerGraph(
         }
         LedgerEditScreen(
             onBack = onBack,
-            onSaved = { amountCents ->
+            onSaved = { amountCents, categoryId ->
                 val prev = navController.previousBackStackEntry
                 if (prev?.destination?.route == Route.Ledger::class.qualifiedName) {
-                    saveEvents.publish(amountCents)
+                    saveEvents.publish(amountCents, categoryId)
                 }
                 onBack()
             },

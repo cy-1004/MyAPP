@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 /**
  * 纪念日（PRD 3.2）。
@@ -15,6 +16,7 @@ import java.util.UUID
  * [isLunar] 为真时，[date] 仍存**用户输入的那一天的公历日期**，农历月日在读取时换算得出。
  * 这样只需要一个日期字段，且用户改主意切换公历/农历时不用重新输入。
  */
+@Serializable
 @Entity(
     tableName = "anniversary",
     indices = [

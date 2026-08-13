@@ -37,6 +37,16 @@ interface KnowledgeSourceDao {
     )
     fun observePinned(): Flow<List<KnowledgeSourceEntity>>
 
+    /** 加入知识池且启用的知识源，M7 每日知识点挑选候选池用。 */
+    @Query(
+        """
+        SELECT * FROM knowledge_source
+        WHERE deleted_at IS NULL AND in_pool = 1 AND enabled = 1
+        ORDER BY sort_order ASC
+        """,
+    )
+    suspend fun getPool(): List<KnowledgeSourceEntity>
+
     /** 一次性取全部未删除知识源，按 sortOrder 升序。整表重排时用，不需要 Flow。 */
     @Query(
         """

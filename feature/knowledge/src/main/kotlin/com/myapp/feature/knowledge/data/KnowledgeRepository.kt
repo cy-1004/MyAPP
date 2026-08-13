@@ -2,11 +2,14 @@ package com.myapp.feature.knowledge.data
 
 import com.myapp.core.common.contract.KnowledgeItem
 import com.myapp.core.common.contract.KnowledgeSource
+import com.myapp.core.common.contract.NoteBrowser
 import com.myapp.core.common.di.IoDispatcher
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.database.dao.KnowledgeContentDao
+import com.myapp.core.database.dao.KnowledgeReviewDao
 import com.myapp.core.database.dao.KnowledgeSourceDao
 import com.myapp.core.database.model.KnowledgeContentEntity
+import com.myapp.core.database.model.KnowledgeReviewEntity
 import com.myapp.core.database.model.KnowledgeSourceEntity
 import com.myapp.feature.knowledge.extract.KnowledgeExtractionScheduler
 import java.util.UUID
@@ -14,6 +17,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
@@ -37,6 +41,7 @@ data class KnowledgeSourceUi(
     val title: String,
     val groupName: String,
     val pinned: Boolean,
+    val inPool: Boolean,
     val enabled: Boolean,
     val fetchStatus: KnowledgeFetchStatus,
     val lastFetchAt: Long?,
@@ -72,7 +77,9 @@ data class KnowledgeSourceDraft(
  * 实现跨 feature 契约 [KnowledgeSource]（定义在 core:common，PRD 4.7.4）：
  * `refresh()` 给启用中的知识源各排一次提取任务（enqueue 后立即返回，不等提取完成——
  * 提取本身是分钟级的后台 WebView 操作，契约调用方不该被卡住）；`pickDailyKnowledge()`
- * 是 M7（每日知识推送，未落地）的占位实现，V1 只在知识池（=置顶）里随机挑一条已缓存正文。
+ * 实现 M7 间隔复习（[KnowledgeReviewSelector]）：知识池（`inPool`，与首页快捷入口用的
+ * `pinned` 是两个独立开关）里挑一条，池空/全部提取失败时降级到 [NoteBrowser]（PRD
+ * 3.8「保证卡片永不空白」）。
  *
  * 保存走读改写而非整体 REPLACE（与 CategoryRepository/NoteRepository 同一套路）。
  */
@@ -80,6 +87,8 @@ data class KnowledgeSourceDraft(
 class KnowledgeRepository @Inject constructor(
     private val sourceDao: KnowledgeSourceDao,
     private val contentDao: KnowledgeContentDao,
+    private val reviewDao: KnowledgeReviewDao,
+    private val noteBrowser: NoteBrowser,
     private val extractionScheduler: KnowledgeExtractionScheduler,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : KnowledgeSource {
@@ -170,6 +179,12 @@ class KnowledgeRepository @Inject constructor(
         sourceDao.update(existing.copy(pinned = pinned, updatedAt = AppTime.now()))
     }
 
+    /** 加入/移出知识池（M7 每日知识点候选池，独立于首页快捷入口的 [setPinned]）。 */
+    suspend fun setInPool(id: Long, inPool: Boolean): Unit = withContext(io) {
+        val existing = sourceDao.getById(id) ?: return@withContext
+        sourceDao.update(existing.copy(inPool = inPool, updatedAt = AppTime.now()))
+    }
+
     suspend fun delete(id: Long): Unit = withContext(io) {
         sourceDao.softDelete(id, AppTime.now())
     }
@@ -206,24 +221,82 @@ class KnowledgeRepository @Inject constructor(
         sourceDao.getAll().filter { it.enabled }.forEach { extractionScheduler.enqueue(it.id) }
     }
 
+    /** 首页卡片订阅用：语义与 [pickDailyKnowledge] 相同，包一层 Flow 方便 Compose 收集。 */
+    fun observeDailyPick(): Flow<KnowledgeItem?> = flow { emit(pickDailyKnowledge()) }
+
     /**
-     * 实现 [KnowledgeSource]：M7（每日知识推送）占位实现——
-     * 知识池（=置顶知识源）里随机挑一条已缓存正文。M7 落地前只有这一个消费方，
-     * 不做「今天推过哪些」的去重逻辑，等 M7 真正需要时再补。
+     * 实现 [KnowledgeSource]：M7 每日知识点挑选（PRD 3.8）。
+     *
+     * 知识池（`inPool && enabled`，与首页快捷入口 `pinned` 是两个独立开关）里按
+     * [KnowledgeReviewSelector] 的间隔复习算法挑一条；池空、全部没缓存正文、或选不出候选时，
+     * 降级到 [NoteBrowser] 随机取一条笔记，保证卡片永不空白（都没有才返回 null）。
      */
     override suspend fun pickDailyKnowledge(): KnowledgeItem? = withContext(io) {
-        val pinned = sourceDao.getAll().filter { it.pinned && it.enabled }
-        if (pinned.isEmpty()) return@withContext null
-        val source = pinned.random()
-        val content = contentDao.getBySourceId(source.id) ?: return@withContext null
-        KnowledgeItem(
-            sourceId = source.id,
-            sectionIndex = content.sectionIndex,
-            title = source.title,
-            summary = content.contentText.take(SNIPPET_LENGTH),
-            url = source.url,
+        val pool = sourceDao.getPool()
+        val candidates = pool.mapNotNull { source ->
+            if (contentDao.getBySourceId(source.id) == null) return@mapNotNull null
+            PoolCandidate(sourceId = source.id, sortOrder = source.sortOrder)
+        }
+        val reviews = reviewDao.getAll().associate { it.sourceId to it.toDomain() }
+        val today = AppTime.run { today().toEpochMilliAtStartOfDay() }
+        val picked = KnowledgeReviewSelector.pickNext(candidates, reviews, today)
+        val fromPool = picked?.let { candidate ->
+            val source = pool.first { it.id == candidate.sourceId }
+            val content = contentDao.getBySourceId(source.id) ?: return@let null
+            KnowledgeItem(
+                sourceId = source.id,
+                sectionIndex = content.sectionIndex,
+                title = content.sectionTitle?.ifBlank { null } ?: source.title,
+                summary = content.contentText.take(SNIPPET_LENGTH),
+                sourceName = source.title,
+                url = source.url,
+            )
+        }
+        fromPool ?: noteBrowser.randomNoteSnippet()?.let { note ->
+            KnowledgeItem(
+                sourceId = note.noteId,
+                sectionIndex = 0,
+                title = "笔记摘录",
+                summary = note.text.take(SNIPPET_LENGTH),
+                sourceName = "笔记",
+                url = null,
+                isNoteFallback = true,
+            )
+        }
+    }
+
+    /**
+     * 已掌握 / 再看看反馈（PRD 3.8）。笔记降级（`sourceId=0`）不参与间隔复习，直接忽略——
+     * 笔记不是知识池成员，没有"复习进度"这个概念。
+     */
+    suspend fun recordFeedback(sourceId: Long, mastered: Boolean): Unit = withContext(io) {
+        if (sourceId <= 0L) return@withContext
+        val now = AppTime.now()
+        val existingEntity = reviewDao.getBySourceId(sourceId)
+        val updated = if (mastered) {
+            KnowledgeReviewSelector.onMastered(existingEntity?.toDomain(), sourceId, now)
+        } else {
+            KnowledgeReviewSelector.onSnoozed(existingEntity?.toDomain(), sourceId, now)
+        }
+        reviewDao.upsert(
+            KnowledgeReviewEntity(
+                id = existingEntity?.id ?: 0,
+                sourceId = updated.sourceId,
+                intervalLevel = updated.intervalLevel,
+                nextDueAt = updated.nextDueAt,
+                lastShownAt = updated.lastShownAt,
+                createdAt = existingEntity?.createdAt ?: now,
+                updatedAt = now,
+            ),
         )
     }
+
+    private fun KnowledgeReviewEntity.toDomain() = KnowledgeReview(
+        sourceId = sourceId,
+        intervalLevel = intervalLevel,
+        nextDueAt = nextDueAt,
+        lastShownAt = lastShownAt,
+    )
 
     /**
      * FTS MATCH 转义，与 NoteRepository/QuestionRepository 同一套做法：用户输入直接做 MATCH
@@ -240,6 +313,7 @@ class KnowledgeRepository @Inject constructor(
         title = title,
         groupName = groupName,
         pinned = pinned,
+        inPool = inPool,
         enabled = enabled,
         fetchStatus = KnowledgeFetchStatus.from(fetchStatus),
         lastFetchAt = lastFetchAt,

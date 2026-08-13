@@ -80,4 +80,8 @@ interface NoteDao {
 
     @Query("UPDATE note SET pinned = :pinned, updated_at = :now WHERE id = :id")
     suspend fun togglePinned(id: Long, pinned: Boolean, now: Long)
+
+    /** 随机挑一条未删除笔记，M7 知识池为空时的降级取材用。 */
+    @Query("SELECT * FROM note WHERE deleted_at IS NULL ORDER BY RANDOM() LIMIT 1")
+    suspend fun getRandom(): NoteEntity?
 }

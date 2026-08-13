@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- 每日 08:00 知识点推送闹钟（PRD 3.8），仅本应用内部触达 -->
+        <receiver
+            android:name=".notify.KnowledgeDailyReceiver"
+            android:exported="false" />
+    </application>
+</manifest>

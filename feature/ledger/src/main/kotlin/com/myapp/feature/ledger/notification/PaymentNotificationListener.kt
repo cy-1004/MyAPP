@@ -8,6 +8,7 @@ import com.myapp.core.common.di.ApplicationScope
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.common.time.BudgetCycle
 import com.myapp.core.database.dao.TransactionDao
+import com.myapp.feature.ledger.data.BudgetCategoryRepository
 import com.myapp.feature.ledger.data.BudgetRepository
 import com.myapp.feature.ledger.data.LedgerPrefsStore
 import com.myapp.feature.ledger.data.LedgerRepository
@@ -37,6 +38,7 @@ class PaymentNotificationListener : NotificationListenerService() {
     @Inject lateinit var ledgerWriter: LedgerWriter
     @Inject lateinit var ledgerRepository: LedgerRepository
     @Inject lateinit var budgetRepository: BudgetRepository
+    @Inject lateinit var budgetCategoryRepository: BudgetCategoryRepository
     @Inject lateinit var transactionDao: TransactionDao
     @Inject lateinit var categorizer: AutoCategorizer
     @Inject lateinit var prefs: LedgerPrefsStore
@@ -94,7 +96,16 @@ class PaymentNotificationListener : NotificationListenerService() {
                     direction = result.direction,
                 )
                 val remaining = budgetRemaining()
-                notifier.post(id, result.amountCents, result.direction, result.merchant, category, remaining)
+                val categoryRemaining = categoryBudgetRemaining(id)
+                notifier.post(
+                    id,
+                    result.amountCents,
+                    result.direction,
+                    result.merchant,
+                    category,
+                    remaining,
+                    categoryRemaining,
+                )
             }
             PaymentParseResult.Failed -> {
                 prefs.addUnrecognized(
@@ -116,6 +127,19 @@ class PaymentNotificationListener : NotificationListenerService() {
         val range = BudgetCycle.currentCycleRange(budget.cycleStartDay)
         val spent = ledgerRepository.sumExpenseInRange(range.first, range.last + 1)
         return budget.totalAmountCents - spent
+    }
+
+    /** 该笔落库后实际的 categoryId（[recordExpense] 内部按名解析），命中分类预算时算剩余。 */
+    private suspend fun categoryBudgetRemaining(transactionId: Long): Long? {
+        val budget = budgetRepository.getCurrent() ?: return null
+        val entity = transactionDao.getById(transactionId) ?: return null
+        val cap = budgetCategoryRepository.observeCaps().first()[entity.categoryId] ?: return null
+        val range = BudgetCycle.currentCycleRange(budget.cycleStartDay)
+        val categorySpent = ledgerRepository.observeCategoryExpenses(range.first, range.last + 1)
+            .first()
+            .firstOrNull { it.categoryId == entity.categoryId }
+            ?.totalCents ?: 0L
+        return cap - categorySpent
     }
 
     private fun extractText(notification: Notification): String {

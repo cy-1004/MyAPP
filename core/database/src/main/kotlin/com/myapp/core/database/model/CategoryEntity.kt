@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
+import kotlinx.serialization.Serializable
 
 /**
  * 记账分类（PRD 3.6.1）。
@@ -19,6 +20,7 @@ import java.util.UUID
  *
  * 全局字段约定（PRD 4.7.7）：uuid / createdAt / updatedAt / deletedAt。
  */
+@Serializable
 @Entity(
     tableName = "category",
     indices = [
