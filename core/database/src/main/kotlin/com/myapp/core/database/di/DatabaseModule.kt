@@ -14,6 +14,7 @@ import com.myapp.core.database.dao.BudgetAlertStateDao
 import com.myapp.core.database.dao.BudgetCategoryDao
 import com.myapp.core.database.dao.BudgetDao
 import com.myapp.core.database.dao.CategoryDao
+import com.myapp.core.database.dao.InterviewDao
 import com.myapp.core.database.dao.KnowledgeContentDao
 import com.myapp.core.database.dao.KnowledgeReviewDao
 import com.myapp.core.database.dao.KnowledgeSourceDao
@@ -108,6 +109,9 @@ object DatabaseModule {
 
     @Provides
     fun provideRssArticleDao(db: MyAppDatabase): RssArticleDao = db.rssArticleDao()
+
+    @Provides
+    fun provideInterviewDao(db: MyAppDatabase): InterviewDao = db.interviewDao()
 
     @Provides
     fun provideBackupDao(db: MyAppDatabase): BackupDao = db.backupDao()

@@ -13,4 +13,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
+
+    // 面试题正文里的配图从 assets 读（file:///android_asset/...），Coil 原生支持这个 scheme
+    implementation(libs.coil.compose)
 }

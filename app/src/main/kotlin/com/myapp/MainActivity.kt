@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.myapp.core.common.contract.KnowledgeItemKind
 import com.myapp.core.common.di.ApplicationScope
 import com.myapp.core.common.keepalive.KeepAliveStatusChecker
 import com.myapp.core.datastore.AppPreferences
@@ -246,10 +247,15 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (id <= 0L) return
+        // KIND 是改版后加的；老通知没有这个 extra，退回按 IS_NOTE 判断（那时只有源/笔记两种）
+        val kind = intent?.getStringExtra(KnowledgeNotifierExtras.KIND)
         val isNote = intent?.getBooleanExtra(KnowledgeNotifierExtras.IS_NOTE, false) ?: false
-        knowledgeDailyTarget.open(
-            if (isNote) KnowledgeDailyDestination.Note(id) else KnowledgeDailyDestination.Reader(id),
-        )
+        val destination = when {
+            kind == KnowledgeItemKind.INTERVIEW_QUESTION.name -> KnowledgeDailyDestination.Question(id)
+            kind == KnowledgeItemKind.NOTE_FALLBACK.name || isNote -> KnowledgeDailyDestination.Note(id)
+            else -> KnowledgeDailyDestination.Reader(id)
+        }
+        knowledgeDailyTarget.open(destination)
     }
 
     /**

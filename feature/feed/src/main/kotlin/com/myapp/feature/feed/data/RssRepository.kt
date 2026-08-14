@@ -9,6 +9,7 @@ import com.myapp.core.common.time.AppTime
 import com.myapp.core.database.dao.RssArticleDao
 import com.myapp.core.database.dao.RssSourceDao
 import com.myapp.core.database.model.RssArticleEntity
+import com.myapp.core.database.model.RssArticleListRow
 import com.myapp.core.database.model.RssSourceEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.UUID
@@ -37,6 +38,24 @@ data class RssSourceUi(
     val lastFetchAt: Long?,
 )
 
+/**
+ * 列表用的轻量模型：**没有 `content`**。
+ * 与 [RssArticleUi]（详情页用，带正文）分开，理由见 `RssArticleListRow` 的说明——
+ * 列表一个字都用不到正文，查出来就是白读几 MB。
+ */
+data class RssArticleListItem(
+    val id: Long,
+    val sourceId: Long,
+    val sourceTitle: String,
+    val link: String,
+    val title: String,
+    val summary: String,
+    val coverImageUrl: String?,
+    val publishedAt: Long,
+    val isRead: Boolean,
+    val isFavorite: Boolean,
+)
+
 data class RssArticleUi(
     val id: Long,
     val sourceId: Long,
@@ -62,12 +81,18 @@ data class RssSourceDraft(
     val canSave: Boolean get() = url.isNotBlank()
 }
 
-/** 文章列表筛选模式（PRD 3.9：全部/按分组/未读/已收藏）。 */
+/**
+ * 文章列表筛选模式（PRD 3.9：全部/按分组/未读/已收藏/按订阅源）。
+ *
+ * [Source] 比 [Group] 细一档：分组是用户给若干订阅源起的类别名，
+ * 而实际看资讯时更常想的是「只看这一个源今天发了什么」。两者都保留，不互相替代。
+ */
 sealed interface RssFilter {
     data object All : RssFilter
     data object Unread : RssFilter
     data object Favorite : RssFilter
     data class Group(val name: String) : RssFilter
+    data class Source(val sourceId: Long) : RssFilter
 }
 
 /** OPML 导入结果：新增几个、因为 URL 已存在跳过几个（PRD 3.9）。 */
@@ -99,15 +124,27 @@ class RssRepository @Inject constructor(
     fun observeSources(): Flow<List<RssSourceUi>> =
         sourceDao.observeAll().map { list -> list.map { it.toUi() } }
 
-    fun observeArticles(filter: RssFilter): Flow<List<RssArticleUi>> {
-        val flow = when (filter) {
-            RssFilter.All -> articleDao.observeArticles()
-            RssFilter.Unread -> articleDao.observeArticles(onlyUnread = true)
-            RssFilter.Favorite -> articleDao.observeArticles(onlyFavorite = true)
-            is RssFilter.Group -> articleDao.observeArticles(groupName = filter.name)
-        }
-        return flow.map { articles -> attachSourceTitles(articles) }
-    }
+    /**
+     * 列表查询。[limit] 由调用方按滚动进度递增（见 RssArticleListViewModel），
+     * 不再一次性把全部文章读出来。
+     */
+    fun observeArticles(filter: RssFilter, limit: Int): Flow<List<RssArticleListItem>> =
+        articleDao.observeArticles(
+            onlyUnread = filter is RssFilter.Unread,
+            onlyFavorite = filter is RssFilter.Favorite,
+            groupName = (filter as? RssFilter.Group)?.name,
+            sourceId = (filter as? RssFilter.Source)?.sourceId,
+            limit = limit,
+        ).map { rows -> attachSourceTitles(rows) }
+
+    /** 当前筛选下的总条数，用于判断是否还能继续加载。 */
+    fun observeArticleCount(filter: RssFilter): Flow<Int> =
+        articleDao.observeArticleCount(
+            onlyUnread = filter is RssFilter.Unread,
+            onlyFavorite = filter is RssFilter.Favorite,
+            groupName = (filter as? RssFilter.Group)?.name,
+            sourceId = (filter as? RssFilter.Source)?.sourceId,
+        )
 
     /** 文章详情页用，带上来源标题；favorite/read 状态变更时随 Flow 自动刷新。 */
     fun observeArticle(id: Long): Flow<RssArticleUi?> = articleDao.observeById(id).map { article ->
@@ -303,6 +340,27 @@ class RssRepository @Inject constructor(
         return articles.mapNotNull { article ->
             val source = sources[article.sourceId] ?: return@mapNotNull null
             article.toUi(source.title)
+        }
+    }
+
+    @JvmName("attachSourceTitlesToRows")
+    private suspend fun attachSourceTitles(rows: List<RssArticleListRow>): List<RssArticleListItem> {
+        if (rows.isEmpty()) return emptyList()
+        val sources = sourceDao.getAll().associateBy { it.id }
+        return rows.mapNotNull { row ->
+            val source = sources[row.sourceId] ?: return@mapNotNull null
+            RssArticleListItem(
+                id = row.id,
+                sourceId = row.sourceId,
+                sourceTitle = source.title,
+                link = row.link,
+                title = row.title,
+                summary = row.summary,
+                coverImageUrl = row.coverImageUrl,
+                publishedAt = row.publishedAt,
+                isRead = row.isRead,
+                isFavorite = row.isFavorite,
+            )
         }
     }
 

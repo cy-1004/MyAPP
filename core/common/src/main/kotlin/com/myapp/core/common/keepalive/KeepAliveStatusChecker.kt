@@ -22,6 +22,7 @@ import javax.inject.Singleton
 @Singleton
 class KeepAliveStatusChecker @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val listenerConnection: NotificationListenerConnection,
 ) {
     /** 电池优化白名单：true 表示已加入白名单，后台不被冻结。 */
     fun isBatteryOptimizationIgnored(): Boolean {
@@ -51,15 +52,23 @@ class KeepAliveStatusChecker @Inject constructor(
     }
 
     /**
-     * 通知使用权（NotificationListenerService）。
+     * 通知使用权**授权状态**（NotificationListenerService）。
      *
-     * M5 记账功能落地后才需要，当前 NotificationListenerService 未在 manifest 启用，
-     * 这里恒 false--保留接口供将来复用。
+     * 注意：授权 ≠ 服务真的连上了。覆盖安装后这里仍返回 true 但通知收不到，
+     * 判断「自动记账现在能不能工作」必须用 [isNotificationListenerConnected]。
      */
     fun isNotificationListenerEnabled(): Boolean {
         return NotificationManagerCompat.getEnabledListenerPackages(context)
             .contains(context.packageName)
     }
+
+    /**
+     * 通知监听服务是否**真的处于连接状态**（见 [NotificationListenerConnection] 的说明）。
+     *
+     * 授权为 true 而这里为 false，就是覆盖安装丢绑定那个坑，
+     * 解法是关掉再打开一次通知使用权（或等 requestRebind 生效）。
+     */
+    fun isNotificationListenerConnected(): Boolean = listenerConnection.connected.value
 
     /**
      * 是否为首次安装（非升级）。

@@ -54,6 +54,16 @@ class RuleDetailViewModel @Inject constructor(
     private val _previewText = MutableStateFlow("")
     val previewText: StateFlow<String> = _previewText.asStateFlow()
 
+    /**
+     * 预览用的通知**标题**。
+     *
+     * 必须与正文分开，因为规则匹配的第一步就是「标题包含全部关键词」。
+     * 之前预览把标题写死成空串，于是只要规则填了标题关键词，预览就永远显示「未匹配」——
+     * 哪怕规则完全正确。用户看到的是一个说谎的预览，自然会觉得「写完不知道对不对」。
+     */
+    private val _previewTitle = MutableStateFlow("")
+    val previewTitle: StateFlow<String> = _previewTitle.asStateFlow()
+
     private val _loaded = MutableStateFlow(ruleId == 0L && presetUnrecognizedId == 0L)
     val loaded: StateFlow<Boolean> = _loaded.asStateFlow()
 
@@ -69,6 +79,7 @@ class RuleDetailViewModel @Inject constructor(
                 val item = prefs.unrecognized.first().firstOrNull { it.id == presetUnrecognizedId }
                 if (item != null) {
                     _previewText.value = item.text
+                    _previewTitle.value = item.title
                     if (ruleId == 0L && _draft.value.name.isBlank()) {
                         // 给个默认名字方便用户保存
                         _draft.value = _draft.value.copy(name = item.title.take(20))
@@ -87,6 +98,7 @@ class RuleDetailViewModel @Inject constructor(
     fun updateMerchantKeyword(value: String) = update { it.copy(merchantKeyword = value) }
     fun updateMerchantBeforeAmount(value: Boolean) = update { it.copy(merchantBeforeAmount = value) }
     fun updatePreviewText(value: String) { _previewText.value = value }
+    fun updatePreviewTitle(value: String) { _previewTitle.value = value }
 
     fun save() {
         val current = _draft.value

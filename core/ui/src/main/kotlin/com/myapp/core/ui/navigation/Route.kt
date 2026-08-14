@@ -127,9 +127,25 @@ sealed interface Route {
     @Serializable
     data class RssArticleDetail(val articleId: Long) : Route
 
-    /** 知识源管理列表（PRD 3.7）。 */
+    /**
+     * 飞书网页收藏列表（PRD 3.7）。
+     *
+     * 曾经是「知识库」子 tab 的主内容；改版后知识库以 md 面试题库为主，
+     * 网页收藏降级为只读书签，从题库页顶栏入口进。
+     */
     @Serializable
     data object KnowledgeSources : Route
+
+    /**
+     * 一道面试题的阅读页（PRD 3.7 改版）：markdown 渲染，图片从 assets 读。
+     * 首页「今日知识点」卡片和章节题目列表都跳这里。
+     */
+    @Serializable
+    data class InterviewQuestion(val questionId: Long) : Route
+
+    /** 某一章下的题目列表（PRD 3.7 改版）。 */
+    @Serializable
+    data class InterviewChapter(val chapterId: Long) : Route
 
     /**
      * 知识源编辑页。id 为 0 表示新建，与待办/纪念日/分类同一套约定。

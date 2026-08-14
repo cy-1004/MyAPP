@@ -33,6 +33,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myapp.core.common.contract.KnowledgeItem
+import com.myapp.core.common.contract.KnowledgeItemKind
 import com.myapp.core.designsystem.component.AppCard
 import com.myapp.core.designsystem.component.CardHeader
 import com.myapp.core.designsystem.component.EmptyState
@@ -91,10 +92,11 @@ class KnowledgeHomeCard @Inject constructor(
                 DailyKnowledgeCard(
                     item = current,
                     onOpenSource = {
-                        val route = if (current.isNoteFallback) {
-                            Route.NoteDetail(current.sourceId)
-                        } else {
-                            Route.KnowledgeReader(current.sourceId)
+                        // sourceId 是题目 / 知识源 / 笔记三个不同 id 空间之一，按 kind 分派
+                        val route = when (current.kind) {
+                            KnowledgeItemKind.INTERVIEW_QUESTION -> Route.InterviewQuestion(current.sourceId)
+                            KnowledgeItemKind.FEISHU_SOURCE -> Route.KnowledgeReader(current.sourceId)
+                            KnowledgeItemKind.NOTE_FALLBACK -> Route.NoteDetail(current.sourceId)
                         }
                         onNavigate(route)
                     },
@@ -136,7 +138,13 @@ private fun DailyKnowledgeCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (!item.isNoteFallback) {
-                    TextButton(onClick = onOpenSource) { Text("跳转原页面") }
+                    // 面试题跳的是本地题目详情，说「原页面」会让人以为要联网开飞书
+                    val openLabel = if (item.kind == KnowledgeItemKind.INTERVIEW_QUESTION) {
+                        "看完整答案"
+                    } else {
+                        "跳转原页面"
+                    }
+                    TextButton(onClick = onOpenSource) { Text(openLabel) }
                     Spacer(Modifier.width(Spacing.xs))
                     OutlinedButton(onClick = onSnoozed) { Text("再看看") }
                     Spacer(Modifier.width(Spacing.sm))

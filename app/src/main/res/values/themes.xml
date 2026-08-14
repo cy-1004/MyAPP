@@ -4,10 +4,19 @@
       启动画面主题。
       windowSplashScreenBackground 必须与 Compose 里的 Base 色 (#FAF9F5) 一致，
       否则冷启动会闪一下白屏 —— 那一帧的色差非常显眼。
+
+      开屏图标复用桌面图标的前景 @mipmap/ic_launcher_fg（与 mipmap-anydpi-v26/ic_launcher.xml
+      同一张），两处不能各指一张图，否则换了桌面图标开屏还是旧的。
+      前景 PNG 只占画布中心的 72/108、四周透明（见 ic_launcher.xml 的说明），
+      正好等于开屏图标要求的「内容占内圈 2/3」，直接用不需要再缩放。
+      四周那圈透明由 windowSplashScreenIconBackgroundColor 补成同色圆底——
+      取的就是图片自带的黄色，与前景里烘焙进去的底色同值，所以看不出接缝。
+      注意这个圆底只在图标那一圈，整屏背景仍是 Base 色，冷启动接到 Compose 首帧不闪。
     -->
     <style name="Theme.MyApp.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_fg</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/ic_launcher_background</item>
         <item name="postSplashScreenTheme">@style/Theme.MyApp</item>
     </style>
 

@@ -3,13 +3,18 @@ package com.myapp.feature.feed.articles
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Article
@@ -31,10 +36,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -48,37 +57,30 @@ import com.myapp.core.designsystem.component.EmptyState
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
 import com.myapp.core.ui.navigation.Route
-import com.myapp.feature.feed.data.RssArticleUi
+import com.myapp.feature.feed.data.RssArticleListItem
 import com.myapp.feature.feed.data.RssFilter
+import com.myapp.feature.feed.data.RssSourceUi
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * RSS 文章列表（PRD 3.9）：全部/未读/收藏筛选 + 下拉刷新。「资讯」子 tab 的内容。
+ * RSS 文章列表的**独立页**（Route.RssArticles，首页卡片「查看更多」跳这里）。
  *
- * 没有周期性后台拉取——只在首次打开这个页面和下拉刷新时触发 [RssArticleListViewModel.refresh]
- * （见 RssRepository 顶部注释的裁剪说明）。点开文章即标记已读。
+ * 「知识」tab 里的资讯子页不走这个入口，而是直接用 [RssArticleListContent]——
+ * 那边的顶栏由宿主统一提供，子页面再挂一个 Scaffold 会让顶部叠两层。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RssArticleListScreen(
     onNavigate: (Route) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: RssArticleListViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-
-    LaunchedEffect(Unit) { viewModel.refreshOnFirstOpen() }
-    LaunchedEffect(Unit) {
-        viewModel.savedAsNoteEvents.collect { event ->
-            snackbarHostState.showSnackbar("已把「${event.title}」存为笔记", duration = SnackbarDuration.Short)
-        }
-    }
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -90,45 +92,101 @@ fun RssArticleListScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            FilterRow(current = state.filter, onSelect = viewModel::setFilter)
+        RssArticleListContent(
+            onNavigate = onNavigate,
+            contentPadding = PaddingValues(
+                start = Spacing.xl,
+                end = Spacing.xl,
+                top = innerPadding.calculateTopPadding(),
+                bottom = 96.dp,
+            ),
+            snackbarHostState = snackbarHostState,
+        )
+    }
+}
 
-            PullToRefreshBox(
-                isRefreshing = state.refreshing,
-                onRefresh = viewModel::refresh,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                if (state.loaded && state.articles.isEmpty()) {
-                    EmptyState(
-                        text = emptyText(state.filter),
-                        actionLabel = "添加订阅源",
-                        onAction = { onNavigate(Route.RssSources) },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    LazyColumn(
-                        contentPadding = PaddingValues(
-                            start = Spacing.xl,
-                            end = Spacing.xl,
-                            top = Spacing.sm,
-                            bottom = 96.dp,
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-                    ) {
-                        items(items = state.articles, key = { it.id }) { article ->
-                            RssArticleRow(
-                                article = article,
-                                onClick = {
-                                    viewModel.setRead(article.id, true)
-                                    onNavigate(Route.RssArticleDetail(article.id))
-                                },
-                                onToggleFavorite = { viewModel.setFavorite(article.id, !article.isFavorite) },
-                                onSaveAsNote = { viewModel.saveAsNote(article) },
-                            )
-                        }
+/**
+ * 资讯列表内容（PRD 3.9）：全部/未读/收藏/按订阅源筛选 + 下拉刷新 + 滚到底加载下一屏。
+ *
+ * 没有周期性后台拉取——只在首次打开和下拉刷新时触发 [RssArticleListViewModel.refresh]
+ * （见 RssRepository 顶部注释的裁剪说明）。点开文章即标记已读。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RssArticleListContent(
+    onNavigate: (Route) -> Unit,
+    contentPadding: PaddingValues,
+    snackbarHostState: SnackbarHostState,
+    modifier: Modifier = Modifier,
+    viewModel: RssArticleListViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) { viewModel.refreshOnFirstOpen() }
+    LaunchedEffect(Unit) {
+        viewModel.savedAsNoteEvents.collect { event ->
+            snackbarHostState.showSnackbar("已把「${event.title}」存为笔记", duration = SnackbarDuration.Short)
+        }
+    }
+
+    val listState = rememberLazyListState()
+    // 滚到距离底部 5 条以内时预取下一屏，等真的见底再加载会看到明显的停顿
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            last >= listState.layoutInfo.totalItemsCount - 5
+        }
+    }
+    LaunchedEffect(listState) {
+        snapshotFlow { shouldLoadMore }.collect { if (it) viewModel.loadMore() }
+    }
+
+    Column(modifier = modifier.fillMaxSize()) {
+        FilterRow(
+            current = state.filter,
+            sources = state.sources,
+            onSelect = viewModel::setFilter,
+            // 筛选条要吃掉顶栏高度，否则会被收起中的顶栏盖住
+            topPadding = contentPadding.calculateTopPadding(),
+        )
+
+        PullToRefreshBox(
+            isRefreshing = state.refreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            if (state.loaded && state.articles.isEmpty()) {
+                EmptyState(
+                    text = emptyText(state.filter),
+                    actionLabel = "添加订阅源",
+                    onAction = { onNavigate(Route.RssSources) },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                LazyColumn(
+                    state = listState,
+                    contentPadding = PaddingValues(
+                        start = contentPadding.calculateStartPadding(LocalLayoutDirection.current),
+                        end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
+                        top = Spacing.sm,
+                        bottom = contentPadding.calculateBottomPadding(),
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    items(items = state.articles, key = { it.id }) { article ->
+                        RssArticleRow(
+                            article = article,
+                            onClick = {
+                                viewModel.setRead(article.id, true)
+                                onNavigate(Route.RssArticleDetail(article.id))
+                            },
+                            onToggleFavorite = { viewModel.setFavorite(article.id, !article.isFavorite) },
+                            onSaveAsNote = { viewModel.saveAsNote(article) },
+                        )
                     }
                 }
             }
@@ -136,10 +194,25 @@ fun RssArticleListScreen(
     }
 }
 
+/**
+ * 筛选条：固定的「全部/未读/收藏」+ 每个订阅源一枚 chip（PRD 3.9 按订阅源筛选）。
+ *
+ * 订阅源可能有十几个，一行放不下，所以整条横向滚动而不是换行——
+ * 换行会让筛选条在源多的时候吃掉半屏，与「顶部占比太大」的问题冲突。
+ */
 @Composable
-private fun FilterRow(current: RssFilter, onSelect: (RssFilter) -> Unit) {
+private fun FilterRow(
+    current: RssFilter,
+    sources: List<RssSourceUi>,
+    onSelect: (RssFilter) -> Unit,
+    topPadding: androidx.compose.ui.unit.Dp,
+) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.xl, vertical = Spacing.sm),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = topPadding)
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = Spacing.xl, vertical = Spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         FilterChip(selected = current == RssFilter.All, onClick = { onSelect(RssFilter.All) }, label = { Text("全部") })
@@ -153,6 +226,15 @@ private fun FilterRow(current: RssFilter, onSelect: (RssFilter) -> Unit) {
             onClick = { onSelect(RssFilter.Favorite) },
             label = { Text("收藏") },
         )
+        sources.forEach { source ->
+            FilterChip(
+                selected = current == RssFilter.Source(source.id),
+                onClick = { onSelect(RssFilter.Source(source.id)) },
+                label = {
+                    Text(source.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                },
+            )
+        }
     }
 }
 
@@ -161,11 +243,12 @@ private fun emptyText(filter: RssFilter): String = when (filter) {
     RssFilter.Unread -> "没有未读资讯"
     RssFilter.Favorite -> "还没有收藏的资讯"
     is RssFilter.Group -> "这个分组下还没有资讯"
+    is RssFilter.Source -> "这个订阅源下还没有资讯"
 }
 
 @Composable
 private fun RssArticleRow(
-    article: RssArticleUi,
+    article: RssArticleListItem,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     onSaveAsNote: () -> Unit,

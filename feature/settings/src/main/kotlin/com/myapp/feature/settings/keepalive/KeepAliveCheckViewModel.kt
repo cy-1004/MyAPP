@@ -184,18 +184,34 @@ class KeepAliveCheckViewModel @Inject constructor(
         },
     )
 
-    private fun autoNotificationListener() = KeepAliveCheckItem(
-        id = KeepAliveCheckIds.NOTIFICATION_LISTENER,
-        title = "通知使用权",
-        description = "支付通知自动记账需要在此开启监听能力",
-        category = KeepAliveCheckItem.Category.AUTO,
-        status = if (statusChecker.isNotificationListenerEnabled()) {
-            KeepAliveCheckItem.Status.PASSED
-        } else {
-            KeepAliveCheckItem.Status.NOT_PASSED
-        },
-        actionLabel = "去开启",
-    )
+    /**
+     * 通知使用权：**授权与连接分开判**。
+     *
+     * 覆盖安装后系统会断开绑定却仍显示已授权，只看授权会一直显示「已通过」，
+     * 而自动记账其实一条都收不到（PRD 9.3 实测坑）。所以「已授权但没连上」
+     * 单独报未通过，并把「关掉再打开一次」这个唯一有效的解法写进描述里。
+     */
+    private fun autoNotificationListener(): KeepAliveCheckItem {
+        val granted = statusChecker.isNotificationListenerEnabled()
+        val connected = statusChecker.isNotificationListenerConnected()
+        return KeepAliveCheckItem(
+            id = KeepAliveCheckIds.NOTIFICATION_LISTENER,
+            title = "通知使用权",
+            description = when {
+                !granted -> "支付通知自动记账需要在此开启监听能力"
+                connected -> "监听服务已连接，支付通知可自动记账"
+                else -> "已授权但服务未连接（覆盖安装后常见）：" +
+                    "在系统设置里把 MyAPP 的通知使用权关掉再打开一次即可恢复"
+            },
+            category = KeepAliveCheckItem.Category.AUTO,
+            status = if (granted && connected) {
+                KeepAliveCheckItem.Status.PASSED
+            } else {
+                KeepAliveCheckItem.Status.NOT_PASSED
+            },
+            actionLabel = if (granted) "去重新开启" else "去开启",
+        )
+    }
 
     private fun manualAutostart() = KeepAliveCheckItem(
         id = KeepAliveCheckIds.AUTOSTART,

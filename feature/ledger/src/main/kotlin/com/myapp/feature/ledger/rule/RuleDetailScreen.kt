@@ -41,6 +41,7 @@ import com.myapp.feature.ledger.data.CustomRuleDraft
 import com.myapp.feature.ledger.notification.CustomRule
 import com.myapp.feature.ledger.notification.PaymentParseResult
 import com.myapp.feature.ledger.notification.PaymentParser
+import com.myapp.feature.ledger.notification.RuleMatchDiagnosis
 
 /**
  * 规则编辑页（PRD 3.6.1 Phase 3）。
@@ -56,17 +57,19 @@ fun RuleDetailScreen(
 ) {
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     val previewText by viewModel.previewText.collectAsStateWithLifecycle()
+    val previewTitle by viewModel.previewTitle.collectAsStateWithLifecycle()
     val loaded by viewModel.loaded.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.results.collect { onBack() }
     }
 
-    val preview = remember(draft, previewText) {
-        if (previewText.isBlank()) null
+    // 标题必须真的传进去：写死空串会让「标题关键词」非空的规则永远预览失败（见 VM 注释）
+    val preview = remember(draft, previewText, previewTitle) {
+        if (previewText.isBlank() && previewTitle.isBlank()) null
         else {
             val rule = draft.toCustomRule().toPaymentRule()
-            PaymentParser.parse(draft.channel, "", previewText, listOf(rule))
+            PaymentParser.parse(draft.channel, previewTitle, previewText, listOf(rule))
         }
     }
 
@@ -118,6 +121,7 @@ fun RuleDetailScreen(
                 RuleDetailForm(
                     draft = draft,
                     previewText = previewText,
+                    previewTitle = previewTitle,
                     preview = preview,
                     viewModel = viewModel,
                 )
@@ -130,9 +134,48 @@ fun RuleDetailScreen(
 private fun RuleDetailForm(
     draft: CustomRuleDraft,
     previewText: String,
+    previewTitle: String,
     preview: PaymentParseResult?,
     viewModel: RuleDetailViewModel,
 ) {
+    // 试跑区放在最上面：先贴一条真实通知、看着结果调下面的字段，
+    // 比填完一屏参数最后才发现底部有个预览框顺手得多。
+    // 从未识别队列跳进来时这两个框已经预填好原文，用户只要调关键词。
+    SectionLabel("先试跑")
+    OutlinedTextField(
+        value = previewTitle,
+        onValueChange = viewModel::updatePreviewTitle,
+        label = { Text("通知标题（如「交易提醒」）") },
+        singleLine = true,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier
+            .fillMaxWidth()
+            .bringIntoViewOnFocus(),
+    )
+    OutlinedTextField(
+        value = previewText,
+        onValueChange = viewModel::updatePreviewText,
+        label = { Text("通知正文（如「你有一笔5.00元的支出」）") },
+        minLines = 2,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier
+            .fillMaxWidth()
+            .bringIntoViewOnFocus(),
+    )
+
+    PreviewResult(
+        preview = preview,
+        failureHint = remember(draft, previewTitle, previewText) {
+            RuleMatchDiagnosis.diagnose(
+                rule = draft.toCustomRule().toPaymentRule(),
+                channel = draft.channel,
+                title = previewTitle,
+                text = previewText,
+            )
+        },
+    )
+
+    SectionLabel("规则")
     OutlinedTextField(
         value = draft.name,
         onValueChange = viewModel::updateName,
@@ -165,7 +208,7 @@ private fun RuleDetailForm(
     OutlinedTextField(
         value = draft.titleKeywords,
         onValueChange = viewModel::updateTitleKeywords,
-        label = { Text("标题关键词（逗号分隔，可选）") },
+        label = { Text("标题必须包含（逗号分隔，可留空）") },
         singleLine = true,
         shape = MaterialTheme.shapes.small,
         modifier = Modifier
@@ -176,7 +219,7 @@ private fun RuleDetailForm(
     OutlinedTextField(
         value = draft.amountKeyword,
         onValueChange = viewModel::updateAmountKeyword,
-        label = { Text("金额关键词（金额前面的字，如「付款」）") },
+        label = { Text("金额紧跟在这几个字后面（如「你有一笔」「付款」）") },
         singleLine = true,
         shape = MaterialTheme.shapes.small,
         modifier = Modifier
@@ -187,7 +230,7 @@ private fun RuleDetailForm(
     OutlinedTextField(
         value = draft.merchantKeyword,
         onValueChange = viewModel::updateMerchantKeyword,
-        label = { Text("商户关键词（可选，如「向」") },
+        label = { Text("商户名紧跟在这几个字后面（可留空，如「向」）") },
         singleLine = true,
         shape = MaterialTheme.shapes.small,
         modifier = Modifier
@@ -216,23 +259,14 @@ private fun RuleDetailForm(
         }
     }
 
-    SectionLabel("预览")
-    OutlinedTextField(
-        value = previewText,
-        onValueChange = viewModel::updatePreviewText,
-        label = { Text("粘贴一条通知正文来测试") },
-        minLines = 2,
-        shape = MaterialTheme.shapes.small,
-        modifier = Modifier
-            .fillMaxWidth()
-            .bringIntoViewOnFocus(),
-    )
-
-    PreviewResult(preview = preview)
 }
 
 @Composable
-private fun PreviewResult(preview: PaymentParseResult?) {
+private fun PreviewResult(
+    preview: PaymentParseResult?,
+    /** 匹配失败时的具体原因，比笼统的「未匹配」有用得多。 */
+    failureHint: String = "未匹配 —— 检查关键词是否拼对、金额格式是否正确",
+) {
     AppCard {
         when (preview) {
             null -> Text(
@@ -259,7 +293,7 @@ private fun PreviewResult(preview: PaymentParseResult?) {
                 )
             }
             PaymentParseResult.Failed -> Text(
-                text = "未匹配 -- 检查关键词是否拼对、金额格式是否正确",
+                text = failureHint,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.appColors.danger,
             )

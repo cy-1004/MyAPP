@@ -100,6 +100,26 @@ class PaymentParserTest {
         assertSuccess(r, 5000, TransactionDirection.INCOME, null)
     }
 
+    @Test
+    fun alipay_tradeNotice_realDeviceSample() {
+        // 2026-08-14 真机实测的真实通知：标题是「交易提醒」，不含「支付宝」三个字
+        val r = parse("ALIPAY", "交易提醒", "你有一笔5.00元的支出，点击领取2个支付宝积分。")
+        assertSuccess(r, 500, TransactionDirection.EXPENSE, null)
+    }
+
+    @Test
+    fun alipay_tradeNotice_income() {
+        val r = parse("ALIPAY", "交易提醒", "你有一笔128.00元的收入，点击查看详情。")
+        assertSuccess(r, 12800, TransactionDirection.INCOME, null)
+    }
+
+    @Test
+    fun alipay_tradeNotice_notStolenByTrailingDigits() {
+        // 正文里「2个支付宝积分」的 2 不能被当成金额：金额锚定在「你有一笔」之后
+        val r = parse("ALIPAY", "交易提醒", "你有一笔0.01元的支出，点击领取2个支付宝积分。")
+        assertSuccess(r, 1, TransactionDirection.EXPENSE, null)
+    }
+
     // ---- 银行卡 ----
 
     @Test

@@ -76,6 +76,19 @@ val builtinPaymentRules: List<PaymentRule> = listOf(
         merchantGroupName = PaymentRule.MERCHANT_GROUP,
         builtinId = BuiltinIds.ALIPAY_EXPENSE,
     ),
+    // 支付宝「交易提醒」：你有一笔5.00元的支出，点击领取2个支付宝积分。
+    // 注意标题是「交易提醒」而**不含「支付宝」**，所以上面那条支付宝规则接不住它
+    // （2026-08-14 实测的真实通知）。这条不设 titleKeywords，靠 channel=ALIPAY 限定。
+    // 方向由「支出/收入」决定，交给 inferDirection 推断，不写死 direction。
+    // 这条必须排在通用兜底之前：兜底的「X 元」规则也能匹配到金额，
+    // 但会把「2个支付宝积分」这类无关数字暴露在回溯风险里，且渠道语义丢失。
+    PaymentRule(
+        channel = "ALIPAY",
+        direction = null,
+        titleKeywords = emptyList(),
+        textRegex = Regex("""你有一笔\s*[¥￥]?(?<amount>[0-9]+(?:\.[0-9]{1,2})?)\s*元"""),
+        builtinId = BuiltinIds.ALIPAY_TRADE_NOTICE,
+    ),
     // 银行卡：您尾号1234卡8月5日支出人民币23.50元
     PaymentRule(
         channel = "BANK",
@@ -116,6 +129,7 @@ object BuiltinIds {
     const val WECHAT_SCAN_VOUCHER = "builtin.wechat.scan_voucher"
     const val WECHAT_INCOME = "builtin.wechat.income"
     const val ALIPAY_EXPENSE = "builtin.alipay.expense"
+    const val ALIPAY_TRADE_NOTICE = "builtin.alipay.trade_notice"
     const val BANK_EXPENSE = "builtin.bank.expense"
     const val BANK_INCOME = "builtin.bank.income"
     const val GENERIC_SYMBOL = "builtin.generic.symbol"
@@ -130,7 +144,8 @@ val builtinPaymentRuleLabels: List<Pair<String, String>> = listOf(
     BuiltinIds.WECHAT_VOUCHER to "微信付款凭证（向 X 付款 Y 元）",
     BuiltinIds.WECHAT_SCAN_VOUCHER to "微信扫码支付凭证（已支付 ¥X 商户）",
     BuiltinIds.WECHAT_INCOME to "微信收款/到账",
-    BuiltinIds.ALIPAY_EXPENSE to "支付宝支付成功",
+    BuiltinIds.ALIPAY_EXPENSE to "支付宝支付成功（支付成功 ¥X 商户）",
+    BuiltinIds.ALIPAY_TRADE_NOTICE to "支付宝交易提醒（你有一笔 X 元的支出）",
     BuiltinIds.BANK_EXPENSE to "银行卡支出人民币",
     BuiltinIds.BANK_INCOME to "银行卡收入人民币",
     BuiltinIds.GENERIC_SYMBOL to "通用：¥/￥ 符号金额",

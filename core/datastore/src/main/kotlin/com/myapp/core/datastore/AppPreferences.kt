@@ -97,6 +97,19 @@ class AppPreferences @Inject constructor(
         store.edit { it[Keys.KNOWLEDGE_DAILY_PUSH_ENABLED] = enabled }
     }
 
+    // ---- md 面试题库（PRD 3.7）----
+    /**
+     * 已导入的题库资源版本。0 = 从没导入过。
+     * 与代码里的 `INTERVIEW_ASSETS_VERSION` 比对，低了才重新解析 assets 里的 md。
+     */
+    val interviewAssetsVersion: Flow<Int> = store.data.map {
+        it[Keys.INTERVIEW_ASSETS_VERSION] ?: 0
+    }
+
+    suspend fun setInterviewAssetsVersion(version: Int) {
+        store.edit { it[Keys.INTERVIEW_ASSETS_VERSION] = version }
+    }
+
     /**
      * 功能开关（PRD 4.7.6）。
      * 每个 feature 可被整体关闭：关闭后卡片、导航入口、后台任务同时失效。
@@ -155,5 +168,6 @@ class AppPreferences @Inject constructor(
         val CLOUD_BACKUP_LAST_SUCCESS_AT = longPreferencesKey("backup.lastSuccessAt")
         val CLOUD_BACKUP_LAST_ERROR = stringPreferencesKey("backup.lastError")
         val KNOWLEDGE_DAILY_PUSH_ENABLED = booleanPreferencesKey("knowledge.dailyPushEnabled")
+        val INTERVIEW_ASSETS_VERSION = intPreferencesKey("interview.assetsVersion")
     }
 }

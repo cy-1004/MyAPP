@@ -147,6 +147,7 @@ fun MyApp(initialRoute: Route) {
         knowledgeDailyTarget.target.collect { destination ->
             if (destination != null) {
                 val route = when (destination) {
+                    is KnowledgeDailyDestination.Question -> Route.InterviewQuestion(destination.questionId)
                     is KnowledgeDailyDestination.Reader -> Route.KnowledgeReader(destination.sourceId)
                     is KnowledgeDailyDestination.Note -> Route.NoteDetail(destination.noteId)
                 }

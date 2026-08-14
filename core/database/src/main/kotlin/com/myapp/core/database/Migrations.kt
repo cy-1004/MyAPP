@@ -429,6 +429,69 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
     }
 }
 
+/**
+ * md 面试题库（PRD 3.7 改版）：新建 `interview_chapter`（章节，知识池开关就在这一级）、
+ * `interview_question`（题目）、`interview_review`（间隔复习进度）。
+ *
+ * 三张表都是从 assets 里的 md 导入出来的派生数据，没有用户手填内容，
+ * 所以不做软删除、重新导入时整篇替换（见 `InterviewDao.replaceDoc`）。
+ * 唯一需要跨导入保住的是「章节是否在池」与「复习进度」，两者都挂在稳定的 key 上。
+ */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `interview_chapter` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`chapter_key` TEXT NOT NULL, " +
+                "`doc_key` TEXT NOT NULL, " +
+                "`doc_name` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`sort_order` INTEGER NOT NULL, " +
+                "`in_pool` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_interview_chapter_chapter_key` " +
+                "ON `interview_chapter` (`chapter_key`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_interview_chapter_doc_key` " +
+                "ON `interview_chapter` (`doc_key`)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `interview_question` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`question_key` TEXT NOT NULL, " +
+                "`chapter_id` INTEGER NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`body` TEXT NOT NULL, " +
+                "`sort_order` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_interview_question_question_key` " +
+                "ON `interview_question` (`question_key`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_interview_question_chapter_id` " +
+                "ON `interview_question` (`chapter_id`)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `interview_review` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`question_key` TEXT NOT NULL, " +
+                "`interval_level` INTEGER NOT NULL, " +
+                "`next_due_at` INTEGER NOT NULL, " +
+                "`last_shown_at` INTEGER, " +
+                "`updated_at` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_interview_review_question_key` " +
+                "ON `interview_review` (`question_key`)",
+        )
+    }
+}
+
 /** 注册到 Room 的全部迁移。新增迁移后记得加进这个数组。 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_1_2,
@@ -441,4 +504,5 @@ val ALL_MIGRATIONS = arrayOf(
     MIGRATION_8_9,
     MIGRATION_9_10,
     MIGRATION_10_11,
+    MIGRATION_11_12,
 )

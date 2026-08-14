@@ -1,10 +1,14 @@
 package com.myapp.feature.ledger.notification
 
 import android.app.Notification
+import android.content.ComponentName
+import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import androidx.core.app.NotificationManagerCompat
 import com.myapp.core.common.contract.LedgerWriter
 import com.myapp.core.common.di.ApplicationScope
+import com.myapp.core.common.keepalive.NotificationListenerConnection
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.common.time.BudgetCycle
 import com.myapp.core.database.dao.TransactionDao
@@ -44,7 +48,27 @@ class PaymentNotificationListener : NotificationListenerService() {
     @Inject lateinit var prefs: LedgerPrefsStore
     @Inject lateinit var ruleRepository: RuleRepository
     @Inject lateinit var notifier: AutoLedgerNotifier
+    @Inject lateinit var connection: NotificationListenerConnection
     @Inject @ApplicationScope lateinit var appScope: CoroutineScope
+
+    /**
+     * 系统真正把服务连上时回调。只有走到这里，通知才会送达——
+     * 「用户授权了」推不出「服务连上了」，详见 [NotificationListenerConnection]。
+     */
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        connection.onConnected()
+    }
+
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        connection.onDisconnected()
+    }
+
+    override fun onDestroy() {
+        connection.onDisconnected()
+        super.onDestroy()
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val channel = PaymentWhitelist.channelOf(sbn.packageName) ?: return
@@ -151,8 +175,32 @@ class PaymentNotificationListener : NotificationListenerService() {
         return listOfNotNull(text, big, lines).joinToString("\n")
     }
 
-    private companion object {
+    companion object {
         /** 去重窗口：60 秒内相同原文视为重复投递。 */
-        const val DEDUPE_WINDOW_MILLIS = 60_000L
+        private const val DEDUPE_WINDOW_MILLIS = 60_000L
+
+        /**
+         * 覆盖安装后请求系统重新绑定服务（PRD 9.3）。
+         *
+         * 背景：`adb install -r` / 应用商店更新之后，系统会断开旧的 listener 绑定。
+         * 标准 Android 会自动重连，ColorOS 不会——权限开关看着还是「已开启」，
+         * 实际一条通知都收不到，自动记账静默失效（2026-08-14 实测确认，
+         * 服务在 dumpsys 的 enabled 列表里但不在 Live 列表里）。
+         *
+         * [NotificationListenerService.requestRebind] 就是为这个场景设计的 API。
+         * 未授权时它是 no-op，所以先判一次授权只是省一次无用的跨进程调用。
+         * 幂等，进程每次启动调一次即可；已连接时再调也无副作用。
+         *
+         * 兜底：万一 requestRebind 也被 ROM 吞了，保活自检页会显示
+         * 「已授权但未连接」并引导用户手动关一次再开（见 KeepAliveCheckViewModel）。
+         */
+        fun ensureBound(context: Context) {
+            val granted = NotificationManagerCompat.getEnabledListenerPackages(context)
+                .contains(context.packageName)
+            if (!granted) return
+            runCatching {
+                requestRebind(ComponentName(context, PaymentNotificationListener::class.java))
+            }
+        }
     }
 }

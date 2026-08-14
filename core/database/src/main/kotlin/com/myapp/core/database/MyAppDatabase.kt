@@ -9,6 +9,7 @@ import com.myapp.core.database.dao.BudgetAlertStateDao
 import com.myapp.core.database.dao.BudgetCategoryDao
 import com.myapp.core.database.dao.BudgetDao
 import com.myapp.core.database.dao.CategoryDao
+import com.myapp.core.database.dao.InterviewDao
 import com.myapp.core.database.dao.KnowledgeContentDao
 import com.myapp.core.database.dao.KnowledgeReviewDao
 import com.myapp.core.database.dao.KnowledgeSourceDao
@@ -24,6 +25,9 @@ import com.myapp.core.database.model.BudgetAlertStateEntity
 import com.myapp.core.database.model.BudgetCategoryEntity
 import com.myapp.core.database.model.BudgetEntity
 import com.myapp.core.database.model.CategoryEntity
+import com.myapp.core.database.model.InterviewChapterEntity
+import com.myapp.core.database.model.InterviewQuestionEntity
+import com.myapp.core.database.model.InterviewReviewEntity
 import com.myapp.core.database.model.KnowledgeContentEntity
 import com.myapp.core.database.model.KnowledgeContentFtsEntity
 import com.myapp.core.database.model.KnowledgeReviewEntity
@@ -80,6 +84,10 @@ import com.myapp.core.database.model.TransactionEntity
         // 分类预算 + 预算预警（PRD 3.6.2）：
         BudgetCategoryEntity::class,
         BudgetAlertStateEntity::class,
+        // md 面试题库（PRD 3.7 改版）：
+        InterviewChapterEntity::class,
+        InterviewQuestionEntity::class,
+        InterviewReviewEntity::class,
         // 后续按 PRD 交付计划逐个加入：
         // MerchantCategoryMapEntity, ParseRuleEntity,
     ],
@@ -103,6 +111,7 @@ abstract class MyAppDatabase : RoomDatabase() {
     abstract fun knowledgeReviewDao(): KnowledgeReviewDao
     abstract fun rssSourceDao(): RssSourceDao
     abstract fun rssArticleDao(): RssArticleDao
+    abstract fun interviewDao(): InterviewDao
 
     /** 全量备份/恢复（PRD 3.13）。新增业务表时记得同步补 BackupDao 里的方法。 */
     abstract fun backupDao(): BackupDao
@@ -117,4 +126,4 @@ internal const val DATABASE_NAME = "myapp.db"
  * 恢复时先比对版本，避免拿高版本的备份往低版本 App 上灌（表结构对不上会炸）。
  * 直接喂给 @Database(version = ...)，保证两处不会各改各的。
  */
-const val DATABASE_SCHEMA_VERSION = 11
+const val DATABASE_SCHEMA_VERSION = 12

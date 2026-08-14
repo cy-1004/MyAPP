@@ -21,6 +21,15 @@ private const val NOTIFICATION_ID = 20_001
 object KnowledgeNotifierExtras {
     const val SOURCE_ID = "com.myapp.extra.knowledge_daily_source_id"
     const val IS_NOTE = "com.myapp.extra.knowledge_daily_is_note"
+
+    /**
+     * 来源类型（[com.myapp.core.common.contract.KnowledgeItemKind] 的 name）。
+     *
+     * 改版后 SOURCE_ID 存的可能是面试题 id、知识源 id 或笔记 id，是三个不同的 id 空间，
+     * 光靠 [IS_NOTE] 已经分不清了。[IS_NOTE] 保留是为了兼容改版前发出、
+     * 用户第二天才点开的通知（那些 PendingIntent 里没有这个 extra）。
+     */
+    const val KIND = "com.myapp.extra.knowledge_daily_kind"
 }
 
 /**
@@ -44,6 +53,7 @@ class KnowledgeNotifier @Inject constructor(
             setClassName(context, "com.myapp.MainActivity")
             putExtra(KnowledgeNotifierExtras.SOURCE_ID, item.sourceId)
             putExtra(KnowledgeNotifierExtras.IS_NOTE, item.isNoteFallback)
+            putExtra(KnowledgeNotifierExtras.KIND, item.kind.name)
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val pendingIntent = PendingIntent.getActivity(

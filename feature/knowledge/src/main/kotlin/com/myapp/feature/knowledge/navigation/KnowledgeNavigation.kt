@@ -6,6 +6,8 @@ import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.knowledge.data.KnowledgeDailyTarget
 import com.myapp.feature.knowledge.data.KnowledgeShareTarget
 import com.myapp.feature.knowledge.extract.settings.KnowledgeExtractSettingsScreen
+import com.myapp.feature.knowledge.interview.InterviewChapterScreen
+import com.myapp.feature.knowledge.interview.InterviewQuestionScreen
 import com.myapp.feature.knowledge.list.KnowledgeListScreen
 import com.myapp.feature.knowledge.list.KnowledgeSourceEditScreen
 import com.myapp.feature.knowledge.reader.KnowledgeReaderScreen
@@ -44,5 +46,13 @@ fun NavGraphBuilder.knowledgeGraph(
 
     composable<Route.KnowledgeExtractSettings> {
         KnowledgeExtractSettingsScreen(onBack = onBack)
+    }
+
+    composable<Route.InterviewChapter> {
+        InterviewChapterScreen(onNavigate = onNavigate, onBack = onBack)
+    }
+
+    composable<Route.InterviewQuestion> {
+        InterviewQuestionScreen(onBack = onBack)
     }
 }

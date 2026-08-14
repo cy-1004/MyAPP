@@ -63,8 +63,9 @@ interface ReminderSource {
 
 /**
  * 知识源（PRD 4.7.4）。
- * V1 实现是「飞书公开网页 + WebView 正文提取」，
- * 将来换 Notion / 本地 Markdown 只需换实现，上层无感知。
+ * 当前实现是「assets 里的 md 面试题库」（PRD 3.7 改版），
+ * 之前是「飞书公开网页 + WebView 正文提取」——换实现时上层没有改动，
+ * 这个接口的抽象是站得住的。
  */
 interface KnowledgeSource {
     suspend fun refresh()
@@ -72,10 +73,26 @@ interface KnowledgeSource {
 }
 
 /**
- * @param sourceId 知识源 id；[isNoteFallback]=true 时改存笔记 id（两者是不同的 id 空间，
- *   但对调用方来说都是"点击后要打开的那个东西的 id"，复用一个字段没必要拆两个）
- * @param title 知识点标题（抓取到的正文标题，不一定等于 [sourceName]）
- * @param sourceName 来源页面名（用户给知识源起的名字，PRD 3.8「来源页面名」）
+ * 每日知识点的来源类型。决定卡片上的按钮、点击后跳哪里。
+ *
+ * 三者的 [KnowledgeItem.sourceId] 分别是题目 id / 知识源 id / 笔记 id——
+ * 是三个不同的 id 空间，靠这个字段区分，不要靠猜。
+ */
+enum class KnowledgeItemKind {
+    /** md 面试题库里的一道题（PRD 3.7 改版后的主力来源）。 */
+    INTERVIEW_QUESTION,
+
+    /** 飞书公开网页知识源（已降级为只读收藏，不再参与抽题，保留以兼容旧数据）。 */
+    FEISHU_SOURCE,
+
+    /** 题库为空时从本地笔记降级取的一条（PRD 3.8「保证卡片永不空白」）。 */
+    NOTE_FALLBACK,
+}
+
+/**
+ * @param sourceId 视 [kind] 而定：题目 id / 知识源 id / 笔记 id
+ * @param title 知识点标题（面试题的题干，或抓取到的正文标题）
+ * @param sourceName 来源名（面试题是所属章节名，飞书源是用户起的页面名）
  */
 data class KnowledgeItem(
     val sourceId: Long,
@@ -84,9 +101,11 @@ data class KnowledgeItem(
     val summary: String,
     val sourceName: String,
     val url: String?,
-    /** true = 知识池为空/提取失败时从笔记降级来的（PRD 3.8），此时 [sourceId] 是笔记 id、[url]=null。 */
-    val isNoteFallback: Boolean = false,
-)
+    val kind: KnowledgeItemKind = KnowledgeItemKind.INTERVIEW_QUESTION,
+) {
+    /** 笔记降级项没有「原页面」可跳，也不参与复习进度。 */
+    val isNoteFallback: Boolean get() = kind == KnowledgeItemKind.NOTE_FALLBACK
+}
 
 /**
  * 供知识池为空时降级取材（PRD 3.8：「保证卡片永不空白」）。由 :feature:note 实现。

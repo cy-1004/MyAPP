@@ -25,6 +25,13 @@ class SettingsViewModel @Inject constructor(
     val notificationListenerEnabled: Boolean
         get() = statusChecker.isNotificationListenerEnabled()
 
+    /**
+     * 服务是否真的连上了。覆盖安装后 [notificationListenerEnabled] 仍为 true 但这里是 false，
+     * 此时自动记账实际不工作，设置页要如实说出来而不是显示「已开启」（PRD 9.3）。
+     */
+    val notificationListenerConnected: Boolean
+        get() = statusChecker.isNotificationListenerConnected()
+
     /** 跳转系统设置开启/关闭通知使用权。 */
     fun openNotificationListenerSettings() {
         val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {

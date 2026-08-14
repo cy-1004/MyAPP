@@ -6,8 +6,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** 点开哪个东西——知识源阅读页，还是笔记详情（PRD 3.8 降级到笔记时）。 */
+/**
+ * 点开哪个东西——面试题详情、知识源阅读页，还是笔记详情。
+ *
+ * [Question] 是改版后的主力（PRD 3.7）；[Reader] 保留是因为通知可能是改版前发出的、
+ * 用户第二天才点开，那时 extras 里还是知识源 id。
+ */
 sealed interface KnowledgeDailyDestination {
+    data class Question(val questionId: Long) : KnowledgeDailyDestination
     data class Reader(val sourceId: Long) : KnowledgeDailyDestination
     data class Note(val noteId: Long) : KnowledgeDailyDestination
 }

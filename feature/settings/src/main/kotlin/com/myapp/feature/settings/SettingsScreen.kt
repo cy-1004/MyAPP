@@ -55,6 +55,7 @@ fun SettingsScreen(
     }
 
     val listenerOn = viewModel.notificationListenerEnabled
+    val listenerConnected = viewModel.notificationListenerConnected
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -82,10 +83,12 @@ fun SettingsScreen(
             item(key = "auto_ledger") {
                 SettingsItem(
                     title = "自动记账",
-                    description = if (listenerOn) {
-                        "已开启：支付通知自动记一笔，点击查看或关闭"
-                    } else {
-                        "支付通知自动记一笔，需先开启通知使用权"
+                    // 「已授权」不等于「能收到通知」：覆盖安装后绑定会断，
+                    // 只显示已开启会让人以为在正常工作（PRD 9.3）
+                    description = when {
+                        !listenerOn -> "支付通知自动记一笔，需先开启通知使用权"
+                        listenerConnected -> "已开启：支付通知自动记一笔，点击查看或关闭"
+                        else -> "⚠ 已授权但服务未连接，现在收不到支付通知；点此关掉再打开一次"
                     },
                     enabled = true,
                     onClick = { viewModel.openNotificationListenerSettings() },

@@ -276,17 +276,29 @@ class MigrationTest {
     }
 
     @Test
-    fun `v1_to_v11_全链路迁移_数据完整保留`() {
+    fun `v11_to_v12_新建面试题库三张表`() {
+        helper.createDatabase(dbName, 11).apply { close() }
+
+        val db = helper.runMigrationsAndValidate(dbName, 12, true, MIGRATION_11_12)
+
+        assertEquals(0, db.count("interview_chapter"))
+        assertEquals(0, db.count("interview_question"))
+        assertEquals(0, db.count("interview_review"))
+        db.close()
+    }
+
+    @Test
+    fun `v1_to_v12_全链路迁移_数据完整保留`() {
         helper.createDatabase(dbName, 1).apply {
             insertTodo(uuid = "todo-v9", title = "跨九版验证", createdAt = 1L)
             close()
         }
 
         val db = helper.runMigrationsAndValidate(
-            dbName, 11, true, *ALL_MIGRATIONS,
+            dbName, 12, true, *ALL_MIGRATIONS,
         )
 
-        // 跨 11 个版本迁移后，最早的 todo 数据仍在
+        // 跨 12 个版本迁移后，最早的 todo 数据仍在
         db.query("SELECT title FROM todo WHERE uuid = 'todo-v9'").use { c ->
             assertTrue(c.moveToFirst()); assertEquals("跨九版验证", c.getString(0))
         }
@@ -308,6 +320,9 @@ class MigrationTest {
         assertEquals(0, db.count("knowledge_review"))
         assertEquals(0, db.count("budget_category"))
         assertEquals(0, db.count("budget_alert_state"))
+        assertEquals(0, db.count("interview_chapter"))
+        assertEquals(0, db.count("interview_question"))
+        assertEquals(0, db.count("interview_review"))
         db.close()
     }
 

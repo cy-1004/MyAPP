@@ -1,6 +1,7 @@
 package com.myapp.feature.knowledge.data
 
 import com.myapp.core.common.contract.KnowledgeItem
+import com.myapp.core.common.contract.KnowledgeItemKind
 import com.myapp.core.common.contract.KnowledgeSource
 import com.myapp.core.common.contract.NoteBrowser
 import com.myapp.core.common.di.IoDispatcher
@@ -12,6 +13,8 @@ import com.myapp.core.database.model.KnowledgeContentEntity
 import com.myapp.core.database.model.KnowledgeReviewEntity
 import com.myapp.core.database.model.KnowledgeSourceEntity
 import com.myapp.feature.knowledge.extract.KnowledgeExtractionScheduler
+import com.myapp.feature.knowledge.interview.InterviewRepository
+import com.myapp.feature.knowledge.interview.plainTextPreview
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -88,6 +91,7 @@ class KnowledgeRepository @Inject constructor(
     private val sourceDao: KnowledgeSourceDao,
     private val contentDao: KnowledgeContentDao,
     private val reviewDao: KnowledgeReviewDao,
+    private val interviewRepository: InterviewRepository,
     private val noteBrowser: NoteBrowser,
     private val extractionScheduler: KnowledgeExtractionScheduler,
     @IoDispatcher private val io: CoroutineDispatcher,
@@ -225,34 +229,31 @@ class KnowledgeRepository @Inject constructor(
     fun observeDailyPick(): Flow<KnowledgeItem?> = flow { emit(pickDailyKnowledge()) }
 
     /**
-     * 实现 [KnowledgeSource]：M7 每日知识点挑选（PRD 3.8）。
+     * 实现 [KnowledgeSource]：每日知识点挑选（PRD 3.8）。
      *
-     * 知识池（`inPool && enabled`，与首页快捷入口 `pinned` 是两个独立开关）里按
-     * [KnowledgeReviewSelector] 的间隔复习算法挑一条；池空、全部没缓存正文、或选不出候选时，
-     * 降级到 [NoteBrowser] 随机取一条笔记，保证卡片永不空白（都没有才返回 null）。
+     * **候选集是 md 面试题库**（PRD 3.7 改版）：从在池章节的题目里按
+     * [KnowledgeReviewSelector] 的间隔复习算法挑一道。
+     * 题库为空（还没导入）或所有章节都被移出池时，降级到 [NoteBrowser] 随机取一条笔记，
+     * 保证卡片永不空白（都没有才返回 null）。
+     *
+     * 飞书知识源不再参与抽题：它已降级为「可收藏、可 WebView 打开」的只读书签，
+     * 正文提取本来就是为抽题服务的，抽题不用它之后那条链路一并停用。
      */
     override suspend fun pickDailyKnowledge(): KnowledgeItem? = withContext(io) {
-        val pool = sourceDao.getPool()
-        val candidates = pool.mapNotNull { source ->
-            if (contentDao.getBySourceId(source.id) == null) return@mapNotNull null
-            PoolCandidate(sourceId = source.id, sortOrder = source.sortOrder)
-        }
-        val reviews = reviewDao.getAll().associate { it.sourceId to it.toDomain() }
-        val today = AppTime.run { today().toEpochMilliAtStartOfDay() }
-        val picked = KnowledgeReviewSelector.pickNext(candidates, reviews, today)
-        val fromPool = picked?.let { candidate ->
-            val source = pool.first { it.id == candidate.sourceId }
-            val content = contentDao.getBySourceId(source.id) ?: return@let null
-            KnowledgeItem(
-                sourceId = source.id,
-                sectionIndex = content.sectionIndex,
-                title = content.sectionTitle?.ifBlank { null } ?: source.title,
-                summary = content.contentText.take(SNIPPET_LENGTH),
-                sourceName = source.title,
-                url = source.url,
+        val question = interviewRepository.pickDaily()
+        if (question != null) {
+            return@withContext KnowledgeItem(
+                sourceId = question.id,
+                sectionIndex = 0,
+                title = question.title,
+                // 卡片摘要要纯文字：直接 take(body) 会把「- 」「**」和换行符原样露出来
+                summary = plainTextPreview(question.body, SNIPPET_LENGTH),
+                sourceName = "${question.docName} · ${question.chapterTitle}",
+                url = null,
+                kind = KnowledgeItemKind.INTERVIEW_QUESTION,
             )
         }
-        fromPool ?: noteBrowser.randomNoteSnippet()?.let { note ->
+        noteBrowser.randomNoteSnippet()?.let { note ->
             KnowledgeItem(
                 sourceId = note.noteId,
                 sectionIndex = 0,
@@ -260,35 +261,21 @@ class KnowledgeRepository @Inject constructor(
                 summary = note.text.take(SNIPPET_LENGTH),
                 sourceName = "笔记",
                 url = null,
-                isNoteFallback = true,
+                kind = KnowledgeItemKind.NOTE_FALLBACK,
             )
         }
     }
 
     /**
-     * 已掌握 / 再看看反馈（PRD 3.8）。笔记降级（`sourceId=0`）不参与间隔复习，直接忽略——
-     * 笔记不是知识池成员，没有"复习进度"这个概念。
+     * 已掌握 / 再看看反馈（PRD 3.8）。
+     *
+     * 现在的知识点是面试题，进度记在 `interview_review`（挂 question_key，
+     * 见 InterviewRepository）。笔记降级项不参与间隔复习——它不是题库成员，
+     * 没有「复习进度」这个概念，调用方按 [KnowledgeItem.isNoteFallback] 拦掉即可。
      */
-    suspend fun recordFeedback(sourceId: Long, mastered: Boolean): Unit = withContext(io) {
-        if (sourceId <= 0L) return@withContext
-        val now = AppTime.now()
-        val existingEntity = reviewDao.getBySourceId(sourceId)
-        val updated = if (mastered) {
-            KnowledgeReviewSelector.onMastered(existingEntity?.toDomain(), sourceId, now)
-        } else {
-            KnowledgeReviewSelector.onSnoozed(existingEntity?.toDomain(), sourceId, now)
-        }
-        reviewDao.upsert(
-            KnowledgeReviewEntity(
-                id = existingEntity?.id ?: 0,
-                sourceId = updated.sourceId,
-                intervalLevel = updated.intervalLevel,
-                nextDueAt = updated.nextDueAt,
-                lastShownAt = updated.lastShownAt,
-                createdAt = existingEntity?.createdAt ?: now,
-                updatedAt = now,
-            ),
-        )
+    suspend fun recordFeedback(questionId: Long, mastered: Boolean): Unit = withContext(io) {
+        if (questionId <= 0L) return@withContext
+        interviewRepository.recordFeedback(questionId, mastered)
     }
 
     private fun KnowledgeReviewEntity.toDomain() = KnowledgeReview(
