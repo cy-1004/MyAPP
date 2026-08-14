@@ -288,17 +288,27 @@ class MigrationTest {
     }
 
     @Test
-    fun `v1_to_v12_全链路迁移_数据完整保留`() {
+    fun `v12_to_v13_新建period_day_log表`() {
+        helper.createDatabase(dbName, 12).apply { close() }
+
+        val db = helper.runMigrationsAndValidate(dbName, 13, true, MIGRATION_12_13)
+
+        assertEquals(0, db.count("period_day_log"))
+        db.close()
+    }
+
+    @Test
+    fun `v1_to_v13_全链路迁移_数据完整保留`() {
         helper.createDatabase(dbName, 1).apply {
             insertTodo(uuid = "todo-v9", title = "跨九版验证", createdAt = 1L)
             close()
         }
 
         val db = helper.runMigrationsAndValidate(
-            dbName, 12, true, *ALL_MIGRATIONS,
+            dbName, 13, true, *ALL_MIGRATIONS,
         )
 
-        // 跨 12 个版本迁移后，最早的 todo 数据仍在
+        // 跨 13 个版本迁移后，最早的 todo 数据仍在
         db.query("SELECT title FROM todo WHERE uuid = 'todo-v9'").use { c ->
             assertTrue(c.moveToFirst()); assertEquals("跨九版验证", c.getString(0))
         }
@@ -323,6 +333,7 @@ class MigrationTest {
         assertEquals(0, db.count("interview_chapter"))
         assertEquals(0, db.count("interview_question"))
         assertEquals(0, db.count("interview_review"))
+        assertEquals(0, db.count("period_day_log"))
         db.close()
     }
 

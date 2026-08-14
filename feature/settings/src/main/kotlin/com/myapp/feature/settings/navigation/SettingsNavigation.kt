@@ -9,6 +9,7 @@ import com.myapp.feature.settings.appearance.AppearanceScreen
 import com.myapp.feature.settings.cardorder.HomeCardOrderScreen
 import com.myapp.feature.settings.cloudbackup.CloudBackupScreen
 import com.myapp.feature.settings.keepalive.KeepAliveCheckScreen
+import com.myapp.feature.settings.localbackup.LocalBackupScreen
 import com.myapp.feature.settings.periodreminder.PeriodReminderSettingsScreen
 
 /**
@@ -53,5 +54,9 @@ fun NavGraphBuilder.settingsGraph(
 
     composable<Route.CloudBackup> {
         CloudBackupScreen(onBack = onBack)
+    }
+
+    composable<Route.LocalBackup> {
+        LocalBackupScreen(onBack = onBack)
     }
 }

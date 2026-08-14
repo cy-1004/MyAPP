@@ -4,6 +4,8 @@ import com.myapp.core.common.time.AppFormatters
 import com.myapp.feature.period.data.PeriodRecord
 import com.myapp.feature.period.data.PeriodState
 import com.myapp.feature.period.data.PeriodStatus
+import com.myapp.feature.period.data.computePhases
+import com.myapp.feature.period.data.phaseOf
 
 /** 首页卡片与详情页共用的状态主文案。 */
 fun PeriodStatus.headline(): String = when (this) {
@@ -25,6 +27,18 @@ fun PeriodState.explanation(): String = when (status) {
         avgDurationDays?.let { append(" · 平均持续 $it 天") }
         if (!reliable) append(" · 样本不足，仅供参考")
     }
+}
+
+/**
+ * 今天处于哪个分期（PRD 3.2）。
+ *
+ * 经期中不说分期——那时候「第几天」本身就是最确切的信息，
+ * 再叠一句推算出来的分期只会稀释它。不可靠/算不出时返回 null，调用方整行不显示。
+ */
+fun PeriodState.todayPhaseText(today: java.time.LocalDate): String? {
+    if (status is PeriodStatus.Ongoing) return null
+    val phase = phaseOf(today, computePhases(this)) ?: return null
+    return "推算处于${phase.label}"
 }
 
 fun PeriodRecord.rangeText(): String {

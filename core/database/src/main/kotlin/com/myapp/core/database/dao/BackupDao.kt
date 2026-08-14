@@ -12,6 +12,7 @@ import com.myapp.core.database.model.KnowledgeContentEntity
 import com.myapp.core.database.model.KnowledgeReviewEntity
 import com.myapp.core.database.model.KnowledgeSourceEntity
 import com.myapp.core.database.model.NoteEntity
+import com.myapp.core.database.model.PeriodDayLogEntity
 import com.myapp.core.database.model.PeriodRecordEntity
 import com.myapp.core.database.model.QuestionEntity
 import com.myapp.core.database.model.RssSourceEntity
@@ -52,6 +53,9 @@ interface BackupDao {
 
     @Query("SELECT * FROM period_record")
     suspend fun allPeriodRecords(): List<PeriodRecordEntity>
+
+    @Query("SELECT * FROM period_day_log")
+    suspend fun allPeriodDayLogs(): List<PeriodDayLogEntity>
 
     @Query("SELECT * FROM note")
     suspend fun allNotes(): List<NoteEntity>
@@ -100,6 +104,9 @@ interface BackupDao {
     suspend fun restorePeriodRecords(items: List<PeriodRecordEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restorePeriodDayLogs(items: List<PeriodDayLogEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun restoreNotes(items: List<NoteEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -142,6 +149,9 @@ interface BackupDao {
 
     @Query("DELETE FROM period_record")
     suspend fun clearPeriodRecords()
+
+    @Query("DELETE FROM period_day_log")
+    suspend fun clearPeriodDayLogs()
 
     @Query("DELETE FROM note")
     suspend fun clearNotes()

@@ -34,7 +34,10 @@ import androidx.compose.ui.unit.dp
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.TabularNumbers
 import com.myapp.core.designsystem.theme.appColors
+import com.myapp.feature.period.data.CyclePhases
 import com.myapp.feature.period.data.PeriodRecord
+import com.myapp.feature.period.data.PhaseMark
+import com.myapp.feature.period.data.phaseOf
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -64,6 +67,10 @@ fun MonthCalendar(
     onMonthChange: (YearMonth) -> Unit,
     onDayClick: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
+    /** 分期标记（PRD 3.2）。预测不可靠时上层传空表，日历上就什么都不画。 */
+    phases: Map<LocalDate, PhaseMark> = emptyMap(),
+    /** 有身体情况记录的日子，右上角打点。 */
+    loggedDays: Set<LocalDate> = emptySet(),
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         MonthHeader(month = month, onMonthChange = onMonthChange)
@@ -71,6 +78,8 @@ fun MonthCalendar(
         MonthGrid(
             month = month,
             marks = marks,
+            phases = phases,
+            loggedDays = loggedDays,
             today = today,
             onMonthChange = onMonthChange,
             onDayClick = onDayClick,
@@ -123,6 +132,8 @@ private fun WeekdayHeader() {
 private fun MonthGrid(
     month: YearMonth,
     marks: Map<LocalDate, DayMark>,
+    phases: Map<LocalDate, PhaseMark>,
+    loggedDays: Set<LocalDate>,
     today: LocalDate,
     onMonthChange: (YearMonth) -> Unit,
     onDayClick: (LocalDate) -> Unit,
@@ -163,6 +174,8 @@ private fun MonthGrid(
                         DayCell(
                             date = date,
                             mark = marks[date],
+                            phase = phases[date],
+                            hasLog = date in loggedDays,
                             isToday = date == today,
                             isFuture = date.isAfter(today),
                             onClick = { onDayClick(date) },
@@ -181,6 +194,8 @@ private fun MonthGrid(
 private fun DayCell(
     date: LocalDate,
     mark: DayMark?,
+    phase: PhaseMark?,
+    hasLog: Boolean,
     isToday: Boolean,
     isFuture: Boolean,
     onClick: () -> Unit,
@@ -189,6 +204,11 @@ private fun DayCell(
     val accent = MaterialTheme.colorScheme.primary
     val container = MaterialTheme.colorScheme.primaryContainer
     val dashedColor = accent.copy(alpha = 0.55f)
+
+    // 分期用第二套颜色（tertiary），与经期的 primary 拉开；
+    // 但**不能只靠颜色**——排卵日另有实线圈、黄体期另有底部横条，
+    // 深色模式和色觉障碍下形状才是能分辨的那一维（PRD 3.2）
+    val phaseAccent = MaterialTheme.colorScheme.tertiary
 
     val textColor = when {
         mark == DayMark.ActualStart -> MaterialTheme.colorScheme.onPrimary
@@ -205,6 +225,35 @@ private fun DayCell(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
+        // 分期垫在最底层：经期标记（实心块/虚线圈）永远盖在它上面——
+        // 已经发生的事实优先于推算出来的分期
+        if (mark == null && phase != null) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .then(
+                        when (phase) {
+                            PhaseMark.Ovulation -> Modifier
+                                .background(phaseAccent.copy(alpha = 0.18f), CircleShape)
+                                .drawBehind {
+                                    drawCircle(
+                                        color = phaseAccent,
+                                        radius = size.minDimension / 2 - 1.dp.toPx(),
+                                        style = Stroke(width = 1.5.dp.toPx()),
+                                    )
+                                }
+
+                            PhaseMark.Fertile ->
+                                Modifier.background(phaseAccent.copy(alpha = 0.18f), CircleShape)
+
+                            // 黄体期与卵泡期不铺底色：整月都铺满会变成一张色块图，
+                            // 反而看不出经期在哪。只在数字下方给一条细横线
+                            PhaseMark.Luteal, PhaseMark.Follicular -> Modifier
+                        },
+                    ),
+            )
+        }
+
         Box(
             modifier = Modifier
                 .size(34.dp)
@@ -234,6 +283,31 @@ private fun DayCell(
                 style = MaterialTheme.typography.labelLarge.merge(TabularNumbers),
                 color = textColor,
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+            )
+        }
+
+        // 黄体期/卵泡期：数字下方一条细横线。两者用同一形状、不同深浅——
+        // 它们是「当前处于哪一段」的辅助信息，不该比经期本身更抢眼
+        if (mark == null && (phase == PhaseMark.Luteal || phase == PhaseMark.Follicular)) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 7.dp)
+                    .size(width = 14.dp, height = 2.dp)
+                    .background(
+                        phaseAccent.copy(alpha = if (phase == PhaseMark.Luteal) 0.7f else 0.3f),
+                    ),
+            )
+        }
+
+        // 有身体情况记录：右上角一个小点。位置刻意与「今天」的底部圆点错开
+        if (hasLog) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 4.dp, end = 4.dp)
+                    .size(5.dp)
+                    .background(MaterialTheme.appColors.warning, CircleShape),
             )
         }
 
@@ -280,6 +354,15 @@ fun monthMarks(
     (1..month.lengthOfMonth()).forEach { day ->
         val date = month.atDay(day)
         markOf(date, records, predicted)?.let { put(date, it) }
+    }
+}
+
+/** 一整个月的分期表。[phases] 为 null（预测不可靠）时返回空表，日历上什么都不画。 */
+fun monthPhases(month: YearMonth, phases: CyclePhases?): Map<LocalDate, PhaseMark> = buildMap {
+    if (phases == null) return@buildMap
+    (1..month.lengthOfMonth()).forEach { day ->
+        val date = month.atDay(day)
+        phaseOf(date, phases)?.let { put(date, it) }
     }
 }
 

@@ -492,6 +492,35 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
     }
 }
 
+/**
+ * v12 -> v13：每日异常记录（PRD 3.2）。
+ *
+ * 只新增一张 `period_day_log`，不动 `period_record`——两者是并列关系，
+ * 日记录独立于「某一次月经」存在。
+ */
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `period_day_log` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`uuid` TEXT NOT NULL, " +
+                "`log_date` INTEGER NOT NULL, " +
+                "`tags` TEXT NOT NULL, " +
+                "`note` TEXT, " +
+                "`created_at` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_period_day_log_log_date` " +
+                "ON `period_day_log` (`log_date`)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_period_day_log_uuid` " +
+                "ON `period_day_log` (`uuid`)",
+        )
+    }
+}
+
 /** 注册到 Room 的全部迁移。新增迁移后记得加进这个数组。 */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_1_2,
@@ -505,4 +534,5 @@ val ALL_MIGRATIONS = arrayOf(
     MIGRATION_9_10,
     MIGRATION_10_11,
     MIGRATION_11_12,
+    MIGRATION_12_13,
 )

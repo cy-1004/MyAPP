@@ -15,6 +15,7 @@ import com.myapp.core.database.dao.KnowledgeReviewDao
 import com.myapp.core.database.dao.KnowledgeSourceDao
 import com.myapp.core.database.dao.NoteDao
 import com.myapp.core.database.dao.PeriodDao
+import com.myapp.core.database.dao.PeriodDayLogDao
 import com.myapp.core.database.dao.QuestionDao
 import com.myapp.core.database.dao.RssArticleDao
 import com.myapp.core.database.dao.RssSourceDao
@@ -34,6 +35,7 @@ import com.myapp.core.database.model.KnowledgeReviewEntity
 import com.myapp.core.database.model.KnowledgeSourceEntity
 import com.myapp.core.database.model.NoteEntity
 import com.myapp.core.database.model.NoteFtsEntity
+import com.myapp.core.database.model.PeriodDayLogEntity
 import com.myapp.core.database.model.PeriodRecordEntity
 import com.myapp.core.database.model.QuestionEntity
 import com.myapp.core.database.model.QuestionFtsEntity
@@ -64,6 +66,7 @@ import com.myapp.core.database.model.TransactionEntity
         TodoEntity::class,
         AnniversaryEntity::class,
         PeriodRecordEntity::class,
+        PeriodDayLogEntity::class,
         NoteEntity::class,
         NoteFtsEntity::class,
         QuestionEntity::class,
@@ -99,6 +102,7 @@ abstract class MyAppDatabase : RoomDatabase() {
     abstract fun todoDao(): TodoDao
     abstract fun anniversaryDao(): AnniversaryDao
     abstract fun periodDao(): PeriodDao
+    abstract fun periodDayLogDao(): PeriodDayLogDao
     abstract fun noteDao(): NoteDao
     abstract fun questionDao(): QuestionDao
     abstract fun transactionDao(): TransactionDao
@@ -126,4 +130,4 @@ internal const val DATABASE_NAME = "myapp.db"
  * 恢复时先比对版本，避免拿高版本的备份往低版本 App 上灌（表结构对不上会炸）。
  * 直接喂给 @Database(version = ...)，保证两处不会各改各的。
  */
-const val DATABASE_SCHEMA_VERSION = 12
+const val DATABASE_SCHEMA_VERSION = 13

@@ -20,6 +20,7 @@ import com.myapp.core.database.dao.KnowledgeReviewDao
 import com.myapp.core.database.dao.KnowledgeSourceDao
 import com.myapp.core.database.dao.NoteDao
 import com.myapp.core.database.dao.PeriodDao
+import com.myapp.core.database.dao.PeriodDayLogDao
 import com.myapp.core.database.dao.QuestionDao
 import com.myapp.core.database.dao.RssArticleDao
 import com.myapp.core.database.dao.RssSourceDao
@@ -73,6 +74,9 @@ object DatabaseModule {
 
     @Provides
     fun providePeriodDao(db: MyAppDatabase): PeriodDao = db.periodDao()
+
+    @Provides
+    fun providePeriodDayLogDao(db: MyAppDatabase): PeriodDayLogDao = db.periodDayLogDao()
 
     @Provides
     fun provideNoteDao(db: MyAppDatabase): NoteDao = db.noteDao()

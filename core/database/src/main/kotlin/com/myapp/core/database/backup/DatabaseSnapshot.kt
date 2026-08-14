@@ -8,6 +8,7 @@ import com.myapp.core.database.model.KnowledgeContentEntity
 import com.myapp.core.database.model.KnowledgeReviewEntity
 import com.myapp.core.database.model.KnowledgeSourceEntity
 import com.myapp.core.database.model.NoteEntity
+import com.myapp.core.database.model.PeriodDayLogEntity
 import com.myapp.core.database.model.PeriodRecordEntity
 import com.myapp.core.database.model.QuestionEntity
 import com.myapp.core.database.model.RssSourceEntity
@@ -38,6 +39,7 @@ data class DatabaseSnapshot(
     val todos: List<TodoEntity> = emptyList(),
     val anniversaries: List<AnniversaryEntity> = emptyList(),
     val periodRecords: List<PeriodRecordEntity> = emptyList(),
+    val periodDayLogs: List<PeriodDayLogEntity> = emptyList(),
     val notes: List<NoteEntity> = emptyList(),
     val questions: List<QuestionEntity> = emptyList(),
     val transactions: List<TransactionEntity> = emptyList(),
@@ -51,7 +53,7 @@ data class DatabaseSnapshot(
 ) {
     /** 总行数，用于「备份了 N 条记录」这类展示与空库保护判断。 */
     val rowCount: Int
-        get() = todos.size + anniversaries.size + periodRecords.size + notes.size +
+        get() = todos.size + anniversaries.size + periodRecords.size + periodDayLogs.size + notes.size +
             questions.size + transactions.size + categories.size + budgets.size +
             budgetCategories.size + knowledgeSources.size + knowledgeContents.size +
             knowledgeReviews.size + rssSources.size

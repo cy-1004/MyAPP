@@ -28,6 +28,7 @@ class BackupDataSource @Inject constructor(
             todos = dao.allTodos(),
             anniversaries = dao.allAnniversaries(),
             periodRecords = dao.allPeriodRecords(),
+            periodDayLogs = dao.allPeriodDayLogs(),
             notes = dao.allNotes(),
             questions = dao.allQuestions(),
             transactions = dao.allTransactions(),
@@ -42,7 +43,7 @@ class BackupDataSource @Inject constructor(
     }
 
     /**
-     * 用快照**覆盖**本机数据：先清空 14 张表，再灌入快照内容。
+     * 用快照**覆盖**本机数据：先清空 15 张表，再灌入快照内容。
      *
      * 整个过程在单个事务里——中途失败会整体回滚，不会留下清空了一半的库。
      * 这也是「导入覆盖恢复」的唯一实现，本地导入和云端恢复共用它。
@@ -57,6 +58,7 @@ class BackupDataSource @Inject constructor(
             dao.clearTodos()
             dao.clearAnniversaries()
             dao.clearPeriodRecords()
+            dao.clearPeriodDayLogs()
             dao.clearNotes()
             dao.clearQuestions()
             dao.clearTransactions()
@@ -72,6 +74,7 @@ class BackupDataSource @Inject constructor(
             dao.restoreTodos(snapshot.todos)
             dao.restoreAnniversaries(snapshot.anniversaries)
             dao.restorePeriodRecords(snapshot.periodRecords)
+            dao.restorePeriodDayLogs(snapshot.periodDayLogs)
             dao.restoreNotes(snapshot.notes)
             dao.restoreQuestions(snapshot.questions)
             dao.restoreTransactions(snapshot.transactions)

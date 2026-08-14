@@ -134,6 +134,14 @@ fun SettingsScreen(
                     onClick = { onNavigate(Route.KeepAliveCheck) },
                 )
             }
+            item(key = "local_backup") {
+                SettingsItem(
+                    title = "本地备份",
+                    description = "导出含笔记图片的加密备份文件，或从备份文件恢复",
+                    enabled = true,
+                    onClick = { onNavigate(Route.LocalBackup) },
+                )
+            }
             item(key = "cloud_backup") {
                 SettingsItem(
                     title = "云备份",

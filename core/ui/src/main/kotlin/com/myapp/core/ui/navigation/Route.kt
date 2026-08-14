@@ -188,6 +188,10 @@ sealed interface Route {
     /** 云备份（PRD 3.13）：登录云账号、每日自动备份、从历史备份恢复。 */
     @Serializable
     data object CloudBackup : Route
+
+    /** 本地备份（PRD 4.6）：导出加密备份文件（含笔记图片）到 SAF 位置，或从文件覆盖恢复。 */
+    @Serializable
+    data object LocalBackup : Route
 }
 
 /** 底部导航的一级入口。 */
