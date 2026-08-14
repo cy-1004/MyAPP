@@ -110,6 +110,58 @@ class AppPreferences @Inject constructor(
         store.edit { it[Keys.INTERVIEW_ASSETS_VERSION] = version }
     }
 
+    // ---- AI 分析（PRD 3.14）----
+
+    /**
+     * AI 总开关。**默认关闭，且这个 false 同时代表「还没同意把记录发出去」**——
+     * 发送的内容包含用户手写的私密文字，必须有一次明确的知情同意才能开始发，
+     * 所以开启动作固定绑一个说明弹窗，不允许在别处静默置 true。
+     */
+    val aiEnabled: Flow<Boolean> = store.data.map { it[Keys.AI_ENABLED] ?: false }
+
+    /**
+     * 是否启用联网搜索。默认开——它是用户提这个需求时明确要的能力；
+     * 但联网会额外产生 token 费用且明显更慢，所以留了关掉省钱的口子。
+     */
+    val aiWebSearchEnabled: Flow<Boolean> = store.data.map { it[Keys.AI_WEB_SEARCH] ?: true }
+
+    suspend fun setAiEnabled(enabled: Boolean) {
+        store.edit { it[Keys.AI_ENABLED] = enabled }
+    }
+
+    suspend fun setAiWebSearchEnabled(enabled: Boolean) {
+        store.edit { it[Keys.AI_WEB_SEARCH] = enabled }
+    }
+
+    /**
+     * 上一次经期 AI 分析的正文、输入指纹与时刻。
+     *
+     * 缓存在这里而不是 Room：它是一段随时可以重新生成的派生文本，
+     * 没有查询/关联需求，为它开一张表和一次迁移不划算。
+     * 指纹用于「同一份数据不重复调用」——数据没变就直接给旧结果，
+     * 既省钱也避免把同样的隐私内容反复发出去（PRD 3.14）。
+     */
+    val periodAiResult: Flow<String> = read(Keys.PERIOD_AI_RESULT, "")
+    val periodAiFingerprint: Flow<String> = read(Keys.PERIOD_AI_FINGERPRINT, "")
+    val periodAiUpdatedAt: Flow<Long> = store.data.map { it[Keys.PERIOD_AI_UPDATED_AT] ?: 0L }
+
+    suspend fun savePeriodAiResult(text: String, fingerprint: String, updatedAt: Long) {
+        store.edit {
+            it[Keys.PERIOD_AI_RESULT] = text
+            it[Keys.PERIOD_AI_FINGERPRINT] = fingerprint
+            it[Keys.PERIOD_AI_UPDATED_AT] = updatedAt
+        }
+    }
+
+    /** 关闭 AI 或清空 key 时一并抹掉缓存，别让关掉之后还留着一份分析结果。 */
+    suspend fun clearPeriodAiResult() {
+        store.edit {
+            it.remove(Keys.PERIOD_AI_RESULT)
+            it.remove(Keys.PERIOD_AI_FINGERPRINT)
+            it.remove(Keys.PERIOD_AI_UPDATED_AT)
+        }
+    }
+
     /**
      * 功能开关（PRD 4.7.6）。
      * 每个 feature 可被整体关闭：关闭后卡片、导航入口、后台任务同时失效。
@@ -169,5 +221,10 @@ class AppPreferences @Inject constructor(
         val CLOUD_BACKUP_LAST_ERROR = stringPreferencesKey("backup.lastError")
         val KNOWLEDGE_DAILY_PUSH_ENABLED = booleanPreferencesKey("knowledge.dailyPushEnabled")
         val INTERVIEW_ASSETS_VERSION = intPreferencesKey("interview.assetsVersion")
+        val AI_ENABLED = booleanPreferencesKey("ai.enabled")
+        val AI_WEB_SEARCH = booleanPreferencesKey("ai.webSearch")
+        val PERIOD_AI_RESULT = stringPreferencesKey("period.ai.result")
+        val PERIOD_AI_FINGERPRINT = stringPreferencesKey("period.ai.fingerprint")
+        val PERIOD_AI_UPDATED_AT = longPreferencesKey("period.ai.updatedAt")
     }
 }

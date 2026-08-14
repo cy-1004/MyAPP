@@ -5,6 +5,7 @@ import androidx.navigation.compose.composable
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.settings.SettingsScreen
 import com.myapp.feature.settings.about.AboutScreen
+import com.myapp.feature.settings.ai.AiSettingsScreen
 import com.myapp.feature.settings.appearance.AppearanceScreen
 import com.myapp.feature.settings.cardorder.HomeCardOrderScreen
 import com.myapp.feature.settings.cloudbackup.CloudBackupScreen
@@ -58,5 +59,9 @@ fun NavGraphBuilder.settingsGraph(
 
     composable<Route.LocalBackup> {
         LocalBackupScreen(onBack = onBack)
+    }
+
+    composable<Route.AiSettings> {
+        AiSettingsScreen(onBack = onBack)
     }
 }

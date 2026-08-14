@@ -153,7 +153,9 @@
 （不可靠时不画，状态卡补一行「今天在哪一段」）。设计取舍与口径见 `docs/交接文档.md`
 第九节 `:feature:period`。
 
-**仍未实现**：AI 分析（见 3.14）、经期记录本身的备注编辑入口（`PeriodRepository.update()`
+AI 分析同日落地，见 3.14。
+
+**仍未实现**：经期记录本身的备注编辑入口（`PeriodRepository.update()`
 早就写好了但没有 UI 调用，与新增的每日记录是两件事）。
 
 ---
@@ -565,7 +567,10 @@
 - 模型：**DeepSeek V4 Flash**，调用时通过 `tools` 参数传 `web_search` 启用**联网搜索**
   （2026-08-14 由用户核对官方文档确认）。模型 id 与是否联网仍写成配置项——
   换模型/临时关联网省钱时不该改代码。
-- 调用方式：标准 HTTP 对话补全接口，复用 `:core:network` 的 OkHttp/Json 单例。
+- 调用方式：**Responses API**（`POST https://api.deepseek.com/responses`），复用 `:core:network`
+  的 OkHttp/Json 单例。**不是**对话补全接口——2026-08-14 实现时查官方文档发现，
+  `/chat/completions` 的 `tools` 只支持自定义 function，服务端执行的内置 `web_search`
+  只有 Responses API 有。联网搜索是这个功能的硬需求，因此接口选型跟着它走。
 - **联网搜索会显著拉长响应时间**，UI 必须有明确的进行中态（不是转圈就完事，
   要能说明「正在联网查资料」），且超时按下面的 30s 算。
 - 超时与失败：单次请求超时 30s，失败不重试（用户正看着，等第二次不如让他自己再点一下），
@@ -599,6 +604,31 @@
 - `:core:network` 放 HTTP 客户端与 DTO；`:feature:period` 放业务编排与 UI。
   AI 只服务经期这一个 feature，先不抽 `:core:ai`——等第二个 feature 也要用时再抽，
   否则会得到一个只有一个使用者的假抽象（同 3.13 里 `SyncProvider` 的教训）。
+
+**落地情况（2026-08-14 已实现）**
+
+按上面的建议位置落地，没抽 `:core:ai`：
+
+| 文件 | 职责 |
+|---|---|
+| `:core:common` `security/SecretStore.kt` | 从 `:feature:settings` **挪到 core 层**——写入方是设置页、读取方是 DeepSeek 客户端，两个 feature 不许互相依赖。`PREFS_NAME`/`KEY_ALIAS` 保持原值，已存的云账号不受影响 |
+| `:core:network` `deepseek/DeepSeekClient.kt` | 只管发请求收文字。key 现取现用不缓存成字段；不重试；`callTimeout` 30s（不是 `readTimeout`，后者管的是包间隔，流式慢吐不触发）；失败分 5 类且**文案里不出现 key** |
+| `:core:network` `deepseek/DeepSeekPricing.kt` | 峰谷时段判定 + 「几点转谷价」。窗口是 UTC 小时的左闭右开区间，只此一处 |
+| `:feature:period` `data/PeriodAiPrompt.kt` | 纯函数：组 prompt + 算输入指纹。**发出去的内容长什么样由它的单测钉死** |
+| `:feature:period` `data/PeriodAiRepository.kt` | 编排：没开启不发、指纹命中给缓存、只缓存结果文本 |
+| `:feature:period` `ui/PeriodAiCard.kt` | 经期页的分析区，四种状态（未开启/缺 key/峰价/正常）共用一张卡片 |
+| `:feature:settings` `ai/AiSettingsScreen.kt` | 总开关（开启前强制过知情同意弹窗）、联网开关、key 的填写/替换/清空 |
+
+与本节原文的两处偏差：
+
+1. **接口从对话补全改成 Responses API**，理由见上面「接口口径」。
+2. **模型 id 是代码常量而不是用户可配项**。本节写「模型 id 与是否联网仍写成配置项」，
+   实际只有「是否联网」做成了设置页开关；模型 id 收敛到 `DeepSeekClient.MODEL` 一个常量。
+   给自用 App 加一个「随便填模型名」的输入框，填错的代价（一次 400 + 一头雾水）
+   高于它省下的那次改代码。
+
+峰价时段的处理与本节要求一致：入口不禁用，点下去先弹一个说明费用翻倍、几点转谷价的
+二次确认；缓存结果的展示完全独立于可用性判断，峰价时照样看得到上次的分析。
 
 ---
 

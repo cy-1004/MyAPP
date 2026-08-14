@@ -27,7 +27,7 @@ data class LocalBackupUiState(
  * 本地备份页 ViewModel（PRD 4.6）。
  *
  * 密码不落盘：本地备份的密码是「这个文件的密码」，用户可以每次用不同的，
- * 与云备份那个存进 [com.myapp.feature.settings.backup.SecretStore] 的长期密码不是一回事。
+ * 与云备份那个存进 [com.myapp.core.common.security.SecretStore] 的长期密码不是一回事。
  */
 @HiltViewModel
 class LocalBackupViewModel @Inject constructor(

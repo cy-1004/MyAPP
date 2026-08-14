@@ -150,6 +150,14 @@ fun SettingsScreen(
                     onClick = { onNavigate(Route.CloudBackup) },
                 )
             }
+            item(key = "ai") {
+                SettingsItem(
+                    title = "AI 分析",
+                    description = "接入 DeepSeek 解读经期记录。默认关闭，开启前会说明发送什么",
+                    enabled = true,
+                    onClick = { onNavigate(Route.AiSettings) },
+                )
+            }
             item(key = "appearance") {
                 SettingsItem(
                     title = "外观",

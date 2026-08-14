@@ -9,7 +9,9 @@ android {
 }
 
 dependencies {
-    implementation(projects.core.common)
+    // api 而不是 implementation：DeepSeekClient 的构造参数里有 :core:common 的
+    // SecretStore，Hilt 的组件代码是在 :app 里生成的，那边必须能看见这个类型。
+    api(projects.core.common)
     api(libs.okhttp)
     api(libs.retrofit)
     api(libs.kotlinx.serialization.json)

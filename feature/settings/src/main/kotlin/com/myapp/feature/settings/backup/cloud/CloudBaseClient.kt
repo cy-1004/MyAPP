@@ -1,7 +1,7 @@
 package com.myapp.feature.settings.backup.cloud
 
 import com.myapp.core.common.di.IoDispatcher
-import com.myapp.feature.settings.backup.SecretStore
+import com.myapp.core.common.security.SecretStore
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject

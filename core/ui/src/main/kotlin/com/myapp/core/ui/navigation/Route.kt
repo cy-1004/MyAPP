@@ -192,6 +192,10 @@ sealed interface Route {
     /** 本地备份（PRD 4.6）：导出加密备份文件（含笔记图片）到 SAF 位置，或从文件覆盖恢复。 */
     @Serializable
     data object LocalBackup : Route
+
+    /** AI 分析（PRD 3.14）：总开关与知情同意、DeepSeek API Key、联网搜索开关。 */
+    @Serializable
+    data object AiSettings : Route
 }
 
 /** 底部导航的一级入口。 */

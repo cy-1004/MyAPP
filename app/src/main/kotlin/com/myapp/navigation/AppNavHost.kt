@@ -68,7 +68,7 @@ fun AppNavHost(
 
         todoGraph(onNavigate = onNavigate, onBack = onBack)
         anniversaryGraph(onNavigate = onNavigate, onBack = onBack)
-        periodGraph(onBack = onBack)
+        periodGraph(onNavigate = onNavigate, onBack = onBack)
         noteGraph(onNavigate = onNavigate, onBack = onBack)
         questionGraph(onNavigate = onNavigate, onBack = onBack)
         ledgerGraph(onNavigate = onNavigate, onBack = onBack, navController = navController)

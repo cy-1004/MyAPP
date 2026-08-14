@@ -59,7 +59,9 @@ import com.myapp.feature.period.data.PeriodState
 import com.myapp.feature.period.data.PeriodStatus
 import com.myapp.feature.period.data.computePhases
 import com.myapp.feature.period.data.phaseOf
+import com.myapp.core.network.deepseek.DeepSeekPricing
 import com.myapp.feature.period.ui.DayLogDialog
+import com.myapp.feature.period.ui.PeriodAiCard
 import com.myapp.feature.period.ui.DayMark
 import com.myapp.feature.period.ui.MonthCalendar
 import com.myapp.feature.period.ui.durationText
@@ -70,8 +72,10 @@ import com.myapp.feature.period.ui.monthMarks
 import com.myapp.feature.period.ui.monthPhases
 import com.myapp.feature.period.ui.rangeText
 import com.myapp.feature.period.ui.todayPhaseText
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 
 /**
  * 经期日历（PRD 3.2）。
@@ -83,16 +87,34 @@ import java.time.YearMonth
 @Composable
 fun PeriodScreen(
     onBack: () -> Unit,
+    onOpenAiSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PeriodViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val dayLogs by viewModel.dayLogs.collectAsStateWithLifecycle()
+    val ai by viewModel.ai.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val today = remember { AppTime.today() }
     var month by remember { mutableStateOf(YearMonth.from(today)) }
     var dayAction by remember { mutableStateOf<LocalDate?>(null) }
     var dayLogEditing by remember { mutableStateOf<LocalDate?>(null) }
+
+    // 峰谷判定按进页面那一刻算一次。逐秒重算没有意义——真跨过边界时用户重进一次即可，
+    // 而一个每秒重组的时钟会把整页的重组频率抬起来
+    val now = remember { Instant.now() }
+    val peak = remember(now) { DeepSeekPricing.isPeak(now) }
+    val peakEndsAt = remember(now, peak) {
+        if (!peak) {
+            null
+        } else {
+            DeepSeekPricing.nextOffPeakStart(now)
+                .atZone(ZoneId.systemDefault())
+                .format(AppFormatters.time)
+        }
+    }
+    /** 非空表示正在等用户确认「峰价时段仍然分析」，值是这次要不要强制刷新。 */
+    var peakConfirm by remember { mutableStateOf<Boolean?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.undoEvents.collect { event ->
@@ -195,6 +217,19 @@ fun PeriodScreen(
                     }
                 }
 
+                item(key = "ai") {
+                    PeriodAiCard(
+                        state = ai,
+                        peak = peak,
+                        peakEndsAt = peakEndsAt,
+                        onAnalyze = { force ->
+                            // 峰价时不直接发：费用翻倍，得让用户知道了再点一次（PRD 3.14）
+                            if (peak) peakConfirm = force else viewModel.analyze(force)
+                        },
+                        onOpenSettings = onOpenAiSettings,
+                    )
+                }
+
                 if (s.data.records.isNotEmpty()) {
                     item(key = "history-title") {
                         Text(
@@ -214,6 +249,29 @@ fun PeriodScreen(
                 }
             }
         }
+    }
+
+    peakConfirm?.let { force ->
+        AlertDialog(
+            onDismissRequest = { peakConfirm = null },
+            title = { Text("现在是峰价时段") },
+            text = {
+                Text(
+                    "这个时段调用 DeepSeek 的费用是谷价的两倍" +
+                        (peakEndsAt?.let { "，$it 之后转为谷价" } ?: "") +
+                        "。要现在就分析吗？",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    peakConfirm = null
+                    viewModel.analyze(force)
+                }) { Text("仍然分析") }
+            },
+            dismissButton = {
+                TextButton(onClick = { peakConfirm = null }) { Text("等等再说") }
+            },
+        )
     }
 
     dayAction?.let { date ->
