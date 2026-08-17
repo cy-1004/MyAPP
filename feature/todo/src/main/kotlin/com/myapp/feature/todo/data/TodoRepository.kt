@@ -240,6 +240,7 @@ class TodoRepository @Inject constructor(
             triggerAtMillis = nextDue,
             title = entity.title,
             body = "待办到期",
+            snoozable = true,
         )
     }
 
@@ -267,6 +268,7 @@ class TodoRepository @Inject constructor(
                 triggerAtMillis = requireNotNull(entity.dueAt),
                 title = entity.title,
                 body = "待办到期",
+                snoozable = true,
             )
         }
     }

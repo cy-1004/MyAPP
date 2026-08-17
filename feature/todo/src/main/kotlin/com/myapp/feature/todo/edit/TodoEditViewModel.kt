@@ -64,7 +64,7 @@ class TodoEditViewModel @Inject constructor(
             val dueAt = current.dueAt
             val key = todoReminderKey(id)
             if (dueAt != null) {
-                reminderScheduler.schedule(key, dueAt, title = current.title, body = "待办到期")
+                reminderScheduler.schedule(key, dueAt, title = current.title, body = "待办到期", snoozable = true)
             } else {
                 // 编辑时可能被改成「无截止时间」，把之前注册的闹钟一并取消
                 reminderScheduler.cancel(key)

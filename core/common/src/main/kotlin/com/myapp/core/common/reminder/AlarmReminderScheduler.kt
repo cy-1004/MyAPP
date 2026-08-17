@@ -16,6 +16,7 @@ internal object ReminderExtras {
     const val KEY = "reminder_key"
     const val TITLE = "reminder_title"
     const val BODY = "reminder_body"
+    const val SNOOZABLE = "reminder_snoozable"
 }
 
 /**
@@ -37,13 +38,20 @@ class AlarmReminderScheduler @Inject constructor(
     private val alarmManager: AlarmManager
         get() = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-    override fun schedule(key: String, triggerAtMillis: Long, title: String, body: String) {
-        val pendingIntent = buildPendingIntent(key, title, body, create = true) ?: return
+    override fun schedule(
+        key: String,
+        triggerAtMillis: Long,
+        title: String,
+        body: String,
+        snoozable: Boolean,
+    ) {
+        val pendingIntent = buildPendingIntent(key, title, body, snoozable, create = true) ?: return
         alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
     }
 
     override fun cancel(key: String) {
-        val pendingIntent = buildPendingIntent(key, title = "", body = "", create = false) ?: return
+        val pendingIntent = buildPendingIntent(key, title = "", body = "", snoozable = false, create = false)
+            ?: return
         alarmManager.cancel(pendingIntent)
         pendingIntent.cancel()
     }
@@ -55,7 +63,7 @@ class AlarmReminderScheduler @Inject constructor(
     override suspend fun rescheduleAll() {
         for (source in sources.get()) {
             for (reminder in source.pendingReminders()) {
-                schedule(reminder.key, reminder.triggerAtMillis, reminder.title, reminder.body)
+                schedule(reminder.key, reminder.triggerAtMillis, reminder.title, reminder.body, reminder.snoozable)
             }
         }
     }
@@ -68,12 +76,14 @@ class AlarmReminderScheduler @Inject constructor(
         key: String,
         title: String,
         body: String,
+        snoozable: Boolean,
         create: Boolean,
     ): PendingIntent? {
         val intent = Intent(context, ReminderAlarmReceiver::class.java).apply {
             putExtra(ReminderExtras.KEY, key)
             putExtra(ReminderExtras.TITLE, title)
             putExtra(ReminderExtras.BODY, body)
+            putExtra(ReminderExtras.SNOOZABLE, snoozable)
         }
         // key.hashCode() 是 requestCode 到 PendingIntent 的稳定映射；
         // FLAG_UPDATE_CURRENT 让同 key 重复注册直接覆盖旧的触发时间与文案。

@@ -36,8 +36,16 @@ interface ReminderScheduler {
     /**
      * @param key 业务唯一键，如 "todo:42"。同 key 重复注册会覆盖。
      * 实现必须用 setExactAndAllowWhileIdle 以穿透 Doze（PRD 9.3）。
+     * @param snoozable 触发时的通知要不要带「稍后提醒」操作按钮（PRD 3.3）。
+     * 只有待办用得上，其它提醒来源留默认 false。
      */
-    fun schedule(key: String, triggerAtMillis: Long, title: String, body: String)
+    fun schedule(
+        key: String,
+        triggerAtMillis: Long,
+        title: String,
+        body: String,
+        snoozable: Boolean = false,
+    )
 
     fun cancel(key: String)
 
@@ -51,6 +59,7 @@ data class ReminderRequest(
     val triggerAtMillis: Long,
     val title: String,
     val body: String,
+    val snoozable: Boolean = false,
 )
 
 /**

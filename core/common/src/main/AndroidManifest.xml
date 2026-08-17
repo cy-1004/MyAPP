@@ -11,6 +11,12 @@
             android:name="com.myapp.core.common.reminder.ReminderAlarmReceiver"
             android:enabled="true"
             android:exported="false" />
+
+        <!-- 待办通知上「15 分钟 / 1 小时 / 明天」稍后提醒按钮的落地点（PRD 3.3） -->
+        <receiver
+            android:name="com.myapp.core.common.reminder.SnoozeActionReceiver"
+            android:enabled="true"
+            android:exported="false" />
     </application>
 
 </manifest>
