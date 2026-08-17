@@ -193,11 +193,14 @@ class NoteRepository @Inject constructor(
     }
 
     /**
-     * FTS MATCH 转义：用户输入直接做 MATCH 会把空格当 AND、把 `* : "` 当操作符。
-     * 用 `"..."` 短语包裹，并把内部的 `"` 双写转义，是最简单的安全做法。
+     * FTS MATCH 构造：用户输入直接做 MATCH 会把空格当 AND、把 `* : "` 当操作符。
+     * 每个词用 `"..."` 短语包裹（内部的 `"` 双写转义），再在引号内加 `*` 做前缀匹配
+     * （FTS4 只认引号内的星号，`"S*"`；放外面 `"S"*` 不生效，FTS5 则相反）。
+     * 不加前缀则整 token 相等，用户必须打完整词才命中。多词之间仍是 AND。
      */
-    private fun escapeFtsQuery(query: String): String {
-        val escaped = query.replace("\"", "\"\"")
-        return "\"$escaped\""
-    }
+    private fun escapeFtsQuery(query: String): String = query
+        .trim()
+        .split(Regex("\\s+"))
+        .filter { it.isNotBlank() }
+        .joinToString(" ") { "\"${it.replace("\"", "\"\"")}*\"" }
 }

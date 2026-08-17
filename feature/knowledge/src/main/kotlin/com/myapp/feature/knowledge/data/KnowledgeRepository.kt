@@ -286,13 +286,17 @@ class KnowledgeRepository @Inject constructor(
     )
 
     /**
-     * FTS MATCH 转义，与 NoteRepository/QuestionRepository 同一套做法：用户输入直接做 MATCH
-     * 会把空格当 AND、把 `* : "` 当操作符。用 `"..."` 短语包裹，内部的 `"` 双写转义。
+     * FTS MATCH 构造，与 NoteRepository/QuestionRepository 同一套做法：用户输入直接做 MATCH
+     * 会把空格当 AND、把 `* : "` 当操作符。每个词用 `"..."` 短语包裹（内部的 `"` 双写转义），
+     * 再在引号内加 `*` 做前缀匹配--FTS4 只认引号内的星号（`"S*"`），放引号外（`"S"*`）不生效，
+     * 与 FTS5 恰好相反（FTS5 要 `"S"*`）。FTS 默认整 token 相等，搜「Spring」匹配不到
+     * 「SpringBoot」，用户感知就是「必须打完整词才命中」。多词之间仍是 AND。
      */
-    private fun escapeFtsQuery(query: String): String {
-        val escaped = query.replace("\"", "\"\"")
-        return "\"$escaped\""
-    }
+    private fun escapeFtsQuery(query: String): String = query
+        .trim()
+        .split(Regex("\\s+"))
+        .filter { it.isNotBlank() }
+        .joinToString(" ") { "\"${it.replace("\"", "\"\"")}*\"" }
 
     private fun KnowledgeSourceEntity.toUi() = KnowledgeSourceUi(
         id = id,

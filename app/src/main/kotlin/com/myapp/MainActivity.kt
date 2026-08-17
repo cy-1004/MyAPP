@@ -28,6 +28,7 @@ import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.knowledge.data.KnowledgeDailyDestination
 import com.myapp.feature.knowledge.data.KnowledgeDailyTarget
 import com.myapp.feature.knowledge.data.KnowledgeShareTarget
+import com.myapp.feature.knowledge.notify.KnowledgeDailyReceiver
 import com.myapp.feature.knowledge.notify.KnowledgeNotifierExtras
 import com.myapp.feature.settings.backup.CloudBackupScheduler
 import com.myapp.feature.ledger.data.BudgetAlertTarget
@@ -142,6 +143,18 @@ class MainActivity : ComponentActivity() {
                         lastSuccessAt = appPreferences.cloudBackupLastSuccessAt.first(),
                         now = System.currentTimeMillis(),
                     )
+                }
+            }
+        }
+
+        // 每日知识点推送自愈（PRD 3.8）：ColorOS 一键清理/强停会静默清掉 AlarmManager 注册，
+        // 而链条只在「开机、触发、开关切换」三处重排，被清一次就永久失效
+        // （2026-08-17 真机实测：开关开着但闹钟已不在 AlarmManager 里）。
+        // 每次启动重排一次；scheduleNext 覆盖同一个 PendingIntent，幂等。
+        appScope.launch {
+            runCatching {
+                if (appPreferences.knowledgeDailyPushEnabled.first()) {
+                    KnowledgeDailyReceiver.scheduleNext(this@MainActivity)
                 }
             }
         }
