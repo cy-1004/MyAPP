@@ -20,10 +20,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -296,6 +296,10 @@ fun PeriodScreen(
                 dayAction = null
                 dayLogEditing = date
             },
+            onDeletePeriod = { record ->
+                viewModel.delete(record.id, record.startDate)
+                dayAction = null
+            },
         )
     }
 
@@ -505,10 +509,13 @@ private fun DayActionDialog(
     onRecordStart: () -> Unit,
     onRecordEnd: () -> Unit,
     onEditDayLog: () -> Unit,
+    onDeletePeriod: (PeriodRecord) -> Unit,
 ) {
     val data = (state as? Result.Success)?.data
     val mark = data?.let { markOf(date, it.records, it.predictedRange) }
     val phase = data?.let { phaseOf(date, computePhases(it)) }
+    // 点的日子落在某段已记录的经期里，才给「撤销这段」——录错了不用滑到历史记录里再删一遍
+    val coveringRecord = data?.records?.firstOrNull { it.covers(date) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -545,18 +552,35 @@ private fun DayActionDialog(
                 ) {
                     Text(if (dayLog == null) "记录今日情况" else "修改今日情况")
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onRecordStart) { Text("记为开始") }
-        },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                OutlinedButton(onClick = onRecordEnd, shape = MaterialTheme.shapes.small) {
-                    Text("记为结束")
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.xs))
+
+                // 操作按钮竖排：数量会变（撤销经期只在覆盖已有记录时出现），
+                // 横排挤在一起就会把「取消」夹在中间，反而是那个最容易误触的位置
+                TextButton(
+                    onClick = onRecordStart,
+                    contentPadding = PaddingValues(horizontal = Spacing.xs),
+                ) { Text("记为开始") }
+                TextButton(
+                    onClick = onRecordEnd,
+                    contentPadding = PaddingValues(horizontal = Spacing.xs),
+                ) { Text("记为结束") }
+                if (coveringRecord != null) {
+                    TextButton(
+                        onClick = { onDeletePeriod(coveringRecord) },
+                        contentPadding = PaddingValues(horizontal = Spacing.xs),
+                    ) {
+                        Text(
+                            "撤销这段经期（${coveringRecord.rangeText()}）",
+                            color = MaterialTheme.appColors.danger,
+                        )
+                    }
                 }
-                TextButton(onClick = onDismiss) { Text("取消") }
             }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
         },
     )
 }
