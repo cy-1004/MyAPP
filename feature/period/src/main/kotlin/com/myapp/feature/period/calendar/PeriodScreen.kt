@@ -1,6 +1,7 @@
 package com.myapp.feature.period.calendar
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -99,6 +101,7 @@ fun PeriodScreen(
     var month by remember { mutableStateOf(YearMonth.from(today)) }
     var dayAction by remember { mutableStateOf<LocalDate?>(null) }
     var dayLogEditing by remember { mutableStateOf<LocalDate?>(null) }
+    var noteEditing by remember { mutableStateOf<PeriodRecord?>(null) }
 
     // 峰谷判定按进页面那一刻算一次。逐秒重算没有意义——真跨过边界时用户重进一次即可，
     // 而一个每秒重组的时钟会把整页的重组频率抬起来
@@ -243,6 +246,7 @@ fun PeriodScreen(
                         RecordRow(
                             record = record,
                             onDelete = { viewModel.delete(record.id, record.startDate) },
+                            onEditNote = { noteEditing = record },
                             modifier = Modifier.animateItem(),
                         )
                     }
@@ -307,6 +311,17 @@ fun PeriodScreen(
             onDelete = {
                 viewModel.deleteDayLog(date)
                 dayLogEditing = null
+            },
+        )
+    }
+
+    noteEditing?.let { record ->
+        NoteEditDialog(
+            record = record,
+            onDismiss = { noteEditing = null },
+            onSave = { note ->
+                viewModel.updateNote(record, note)
+                noteEditing = null
             },
         )
     }
@@ -410,6 +425,7 @@ private fun LegendItem(color: Color, label: String) {
 private fun RecordRow(
     record: PeriodRecord,
     onDelete: () -> Unit,
+    onEditNote: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AppCard(modifier = modifier, contentPadding = PaddingValues(Spacing.md)) {
@@ -418,19 +434,21 @@ private fun RecordRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onEditNote),
+            ) {
                 Text(
                     text = record.rangeText(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                record.note?.let { note ->
-                    Text(
-                        text = note,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.appColors.textSecondary,
-                    )
-                }
+                Text(
+                    text = record.note ?: "点击添加备注",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.appColors.textSecondary,
+                )
             }
             Text(
                 text = record.durationText(),
@@ -446,6 +464,36 @@ private fun RecordRow(
             }
         }
     }
+}
+
+@Composable
+private fun NoteEditDialog(
+    record: PeriodRecord,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var note by remember(record) { mutableStateOf(record.note.orEmpty()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("${record.rangeText()} 的备注") },
+        text = {
+            OutlinedTextField(
+                value = note,
+                onValueChange = { note = it },
+                label = { Text("备注（可留空）") },
+                minLines = 2,
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(note) }) { Text("保存") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
 }
 
 @Composable

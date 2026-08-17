@@ -9,6 +9,7 @@ import com.myapp.feature.period.data.PeriodAiOutcome
 import com.myapp.feature.period.data.PeriodAiRepository
 import com.myapp.feature.period.data.PeriodDayLog
 import com.myapp.feature.period.data.PeriodDayLogRepository
+import com.myapp.feature.period.data.PeriodRecord
 import com.myapp.feature.period.data.PeriodRepository
 import com.myapp.feature.period.data.PeriodState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -157,6 +158,13 @@ class PeriodViewModel @Inject constructor(
 
     fun undoDelete(id: Long) {
         viewModelScope.launch { repository.restore(id) }
+    }
+
+    /** 只改备注，起止日期原样传回——`update()` 是整条记录一起覆盖的通用接口。 */
+    fun updateNote(record: PeriodRecord, note: String) {
+        viewModelScope.launch {
+            repository.update(record.id, record.startDate, record.endDate, note)
+        }
     }
 
     /** 保存某一天的身体情况；标签与文本都空时等价于删除这一天（见 repository）。 */
