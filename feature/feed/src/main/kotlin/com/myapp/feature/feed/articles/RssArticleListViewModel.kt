@@ -2,7 +2,8 @@ package com.myapp.feature.feed.articles
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.myapp.core.database.dao.DEFAULT_PAGE_SIZE
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.myapp.feature.feed.data.RssArticleListItem
 import com.myapp.feature.feed.data.RssFilter
 import com.myapp.feature.feed.data.RssRepository
@@ -21,18 +22,16 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+/**
+ * 列表页的「非分页」状态。文章本身走 [RssArticleListViewModel.articles] 那条
+ * `PagingData` 流，不放在这里--PagingData 不是可以随便塞进 StateFlow 比较的普通值。
+ */
 data class RssArticleListState(
     val filter: RssFilter = RssFilter.All,
-    val articles: List<RssArticleListItem> = emptyList(),
     /** 筛选器要用的订阅源清单（PRD 3.9「按订阅源」筛选）。 */
     val sources: List<RssSourceUi> = emptyList(),
-    val loaded: Boolean = false,
     val refreshing: Boolean = false,
-    /** 当前筛选下的总条数，用来判断还能不能继续往下加载。 */
-    val totalCount: Int = 0,
-) {
-    val canLoadMore: Boolean get() = articles.size < totalCount
-}
+)
 
 /** 一次性事件：「已存为笔记」提示。 */
 data class RssSavedAsNoteEvent(val title: String)
@@ -47,30 +46,28 @@ class RssArticleListViewModel @Inject constructor(
     private val refreshing = MutableStateFlow(false)
 
     /**
-     * 当前要显示多少条。
+     * 文章分页流（PRD 4.5）。
      *
-     * 不引入 Paging 3：本页只是「往下滚就多给一屏」，Paging 的
-     * PagingSource/RemoteMediator 那套在这里是纯粹的额外复杂度
-     * （PRD 8 把 Paging 列在 P3 打磨期，不是现在要解决的问题）。
-     * Room 的 Flow 在数据变化时会重查，limit 变大即触发一次新查询，天然够用。
+     * 改版前是「limit 递增」：滚到底就把 limit 加 50 重查一次，
+     * 结果是滚得越远、内存里攒的文章越多，一路涨到把符合条件的全部装进去
+     * （库里有 5000+ 篇）。Paging 的 `maxSize` 会把滚远了的页丢掉，占用有上限。
+     *
+     * `cachedIn(viewModelScope)` 不能省：没有它，每次配置变更/重订阅都会
+     * 从第一页重新加载，滚动位置和已加载的页全丢。
      */
-    private val limit = MutableStateFlow(DEFAULT_PAGE_SIZE)
+    val articles: Flow<PagingData<RssArticleListItem>> = filter
+        .flatMapLatest { repository.pagedArticles(it) }
+        .cachedIn(viewModelScope)
 
     val state: StateFlow<RssArticleListState> = combine(
-        combine(filter, limit) { f, l -> f to l }
-            .flatMapLatest { (f, l) -> repository.observeArticles(f, l) },
-        filter.flatMapLatest { repository.observeArticleCount(it) },
         repository.observeSources(),
         filter,
         refreshing,
-    ) { articles, total, sources, currentFilter, isRefreshing ->
+    ) { sources, currentFilter, isRefreshing ->
         RssArticleListState(
             filter = currentFilter,
-            articles = articles,
             sources = sources,
-            loaded = true,
             refreshing = isRefreshing,
-            totalCount = total,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -99,17 +96,13 @@ class RssArticleListViewModel @Inject constructor(
         }
     }
 
-    /** 滚到底部时再放一屏。已经全部加载完就不再增长，避免 limit 无意义地涨下去。 */
-    fun loadMore() {
-        if (!state.value.canLoadMore) return
-        limit.value += DEFAULT_PAGE_SIZE
-    }
-
-    /** 换筛选条件时把 limit 收回首屏——否则从「全部」切到某个源还会按上千条去查。 */
+    /**
+     * 换筛选条件。不用再手动把 limit 收回首屏了--
+     * `flatMapLatest` 会为新条件建一条全新的分页流，天然从第一页开始。
+     */
     fun setFilter(value: RssFilter) {
         if (filter.value == value) return
         filter.value = value
-        limit.value = DEFAULT_PAGE_SIZE
     }
 
     fun setRead(id: Long, isRead: Boolean) {

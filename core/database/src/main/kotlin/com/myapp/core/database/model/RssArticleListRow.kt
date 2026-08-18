@@ -35,3 +35,39 @@ data class RssArticleListRow(
     @ColumnInfo(name = "is_favorite")
     val isFavorite: Boolean,
 )
+
+/**
+ * 分页版的投影行：比 [RssArticleListRow] 多一个 [sourceTitle]，**直接从 JOIN 出来的
+ * `rss_source.title` 取**，不再回头单独查一次订阅源表。
+ *
+ * 非分页路径是「一批行拿到手后查一次 `sourceDao.getAll()` 建映射」，一批只查一次，划算；
+ * 但 `PagingData.map` 是**逐条**执行的，那套做法会退化成每篇文章查一次全表。
+ * query 本来就 JOIN 了 `rss_source`，把标题顺手带出来最省事。
+ */
+data class RssPagedArticleRow(
+    val id: Long,
+
+    @ColumnInfo(name = "source_id")
+    val sourceId: Long,
+
+    @ColumnInfo(name = "source_title")
+    val sourceTitle: String,
+
+    val link: String,
+
+    val title: String,
+
+    val summary: String,
+
+    @ColumnInfo(name = "cover_image_url")
+    val coverImageUrl: String?,
+
+    @ColumnInfo(name = "published_at")
+    val publishedAt: Long,
+
+    @ColumnInfo(name = "is_read")
+    val isRead: Boolean,
+
+    @ColumnInfo(name = "is_favorite")
+    val isFavorite: Boolean,
+)

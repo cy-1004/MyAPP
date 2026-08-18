@@ -7,3 +7,9 @@ plugins {
 android {
     namespace = "com.myapp.feature.ledger"
 }
+
+dependencies {
+    // 账目列表分页（PRD 4.5）。PagingSource/Pager 由 :core:database 的 api 依赖带进来，
+    // 这里只需要 Compose 侧的 collectAsLazyPagingItems
+    implementation(libs.androidx.paging.compose)
+}

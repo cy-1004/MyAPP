@@ -2,14 +2,20 @@ package com.myapp.feature.feed.data
 
 import android.content.Context
 import android.net.Uri
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
 import com.myapp.core.common.contract.NoteWriter
 import com.myapp.core.common.di.ApplicationScope
 import com.myapp.core.common.di.IoDispatcher
 import com.myapp.core.common.time.AppTime
+import com.myapp.core.database.dao.DEFAULT_PAGE_SIZE
 import com.myapp.core.database.dao.RssArticleDao
 import com.myapp.core.database.dao.RssSourceDao
 import com.myapp.core.database.model.RssArticleEntity
 import com.myapp.core.database.model.RssArticleListRow
+import com.myapp.core.database.model.RssPagedArticleRow
 import com.myapp.core.database.model.RssSourceEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.UUID
@@ -136,6 +142,32 @@ class RssRepository @Inject constructor(
             sourceId = (filter as? RssFilter.Source)?.sourceId,
             limit = limit,
         ).map { rows -> attachSourceTitles(rows) }
+
+    /**
+     * 列表分页流（PRD 4.5）。
+     *
+     * `pageSize` 沿用原来的首屏条数 [DEFAULT_PAGE_SIZE]，交互手感跟改版前一致。
+     * `maxSize` 是这次换 Paging 真正买到的东西：**滚得再远，内存里也只留 4 页**，
+     * 远处的页会被丢掉、滚回去再查。旧的「limit 递增」方案做不到这点——
+     * 它只会一路涨到把符合条件的文章全装进内存（实测库里有 5000+ 篇）。
+     * `enablePlaceholders = false`：留空位得先 COUNT 一次全表，而这个列表
+     * 不需要「一共多少条」这个信息，省掉这次扫描。
+     */
+    fun pagedArticles(filter: RssFilter): Flow<PagingData<RssArticleListItem>> = Pager(
+        config = PagingConfig(
+            pageSize = DEFAULT_PAGE_SIZE,
+            maxSize = DEFAULT_PAGE_SIZE * 4,
+            enablePlaceholders = false,
+        ),
+        pagingSourceFactory = {
+            articleDao.pagingArticles(
+                onlyUnread = filter is RssFilter.Unread,
+                onlyFavorite = filter is RssFilter.Favorite,
+                groupName = (filter as? RssFilter.Group)?.name,
+                sourceId = (filter as? RssFilter.Source)?.sourceId,
+            )
+        },
+    ).flow.map { paging -> paging.map { it.toListItem() } }
 
     /** 当前筛选下的总条数，用于判断是否还能继续加载。 */
     fun observeArticleCount(filter: RssFilter): Flow<Int> =
@@ -363,6 +395,20 @@ class RssRepository @Inject constructor(
             )
         }
     }
+
+    /** 分页行 -> 列表项。来源标题已经在 SQL 的 JOIN 里带出来了，不用再查订阅源表。 */
+    private fun RssPagedArticleRow.toListItem() = RssArticleListItem(
+        id = id,
+        sourceId = sourceId,
+        sourceTitle = sourceTitle,
+        link = link,
+        title = title,
+        summary = summary,
+        coverImageUrl = coverImageUrl,
+        publishedAt = publishedAt,
+        isRead = isRead,
+        isFavorite = isFavorite,
+    )
 
     private fun RssSourceEntity.toUi() = RssSourceUi(
         id = id,

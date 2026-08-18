@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,10 +35,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -51,6 +48,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import coil.compose.AsyncImage
 import com.myapp.core.designsystem.component.AppCard
 import com.myapp.core.designsystem.component.EmptyState
@@ -133,17 +133,9 @@ fun RssArticleListContent(
         }
     }
 
+    // 预取由 Paging 自己按 prefetchDistance 做，不用再监听滚动位置手动 loadMore
+    val articles = viewModel.articles.collectAsLazyPagingItems()
     val listState = rememberLazyListState()
-    // 滚到距离底部 5 条以内时预取下一屏，等真的见底再加载会看到明显的停顿
-    val shouldLoadMore by remember {
-        derivedStateOf {
-            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            last >= listState.layoutInfo.totalItemsCount - 5
-        }
-    }
-    LaunchedEffect(listState) {
-        snapshotFlow { shouldLoadMore }.collect { if (it) viewModel.loadMore() }
-    }
 
     Column(modifier = modifier.fillMaxSize()) {
         FilterRow(
@@ -159,7 +151,10 @@ fun RssArticleListContent(
             onRefresh = viewModel::refresh,
             modifier = Modifier.fillMaxSize(),
         ) {
-            if (state.loaded && state.articles.isEmpty()) {
+            // 空态要等首次加载真的结束再显示，否则首帧会闪一下「还没有文章」。
+            // loadState.refresh 是 NotLoading 才算加载完（初始值是 Loading）
+            val loaded = articles.loadState.refresh !is LoadState.Loading
+            if (loaded && articles.itemCount == 0) {
                 EmptyState(
                     text = emptyText(state.filter),
                     actionLabel = "添加订阅源",
@@ -177,7 +172,13 @@ fun RssArticleListContent(
                     ),
                     verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    items(items = state.articles, key = { it.id }) { article ->
+                    items(
+                        count = articles.itemCount,
+                        key = articles.itemKey { it.id },
+                    ) { index ->
+                        // enablePlaceholders = false，所以理论上不会是 null；
+                        // 判空只是为了不让边界情况把整页崩掉
+                        val article = articles[index] ?: return@items
                         RssArticleRow(
                             article = article,
                             onClick = {

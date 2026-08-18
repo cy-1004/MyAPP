@@ -1,5 +1,6 @@
 package com.myapp.core.database.dao
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -57,6 +58,15 @@ data class CategoryExpense(
 data class MonthlyExpense(
     val yearMonth: String,
     val totalAmount: Long,
+)
+
+/**
+ * 某一天的支出合计（GROUP BY 投影）。账目列表的日期表头用。
+ * [day] 形如 "2026-08-18"，来自 SQLite `date(..., 'localtime')`，与 [MonthlyExpense] 同口径。
+ */
+data class DailyExpenseTotal(
+    val day: String,
+    val totalCents: Long,
 )
 
 @Dao
@@ -159,6 +169,51 @@ interface TransactionDao {
         """,
     )
     fun observeAllWithCategory(): Flow<List<TransactionWithCategory>>
+
+    /**
+     * 列表分页版（PRD 4.5）：与 [observeAllWithCategory] 同一条 query，
+     * 只是返回 `PagingSource`。取多少由 `PagingConfig` 决定。
+     *
+     * [observeAllWithCategory] 保留给备份/统计这类真需要全量的地方，别顺手删掉。
+     */
+    @Query(
+        """
+        SELECT t.id, t.uuid, t.amount, t.direction, t.category_id AS categoryId,
+               c.name AS categoryName, c.icon AS categoryIcon, c.color AS categoryColor,
+               t.merchant, t.channel, t.occurred_at AS occurredAt,
+               t.status, t.source, t.note
+        FROM transaction_record t
+        INNER JOIN category c ON c.id = t.category_id
+        WHERE t.deleted_at IS NULL
+        ORDER BY t.occurred_at DESC
+        """,
+    )
+    fun pagingAllWithCategory(): PagingSource<Int, TransactionWithCategory>
+
+    /**
+     * 每天的支出合计（分），按天倒序。列表的日期表头用。
+     *
+     * 为什么要单独一条：表头显示的是**那一整天**的支出合计，分页之后一天的条目
+     * 可能跨在两页之间，光看当前页的条目加不出正确的合计。
+     * 这条聚合查询的结果集只有「天数」这个量级（一年才 365 行），
+     * 而且 `GROUP BY` 在 SQLite 里就做完了，比把分页数据凑齐便宜得多。
+     *
+     * **时区**：`'localtime'` 用的是**系统时区**，而 App 内部统一走 `AppTime.zone`。
+     * 生产环境两者相同；只有单测把 `AppTime.zone` 改成 UTC 时会分叉，
+     * 而这条查询只喂给表头文案，不参与任何计算，分叉的代价可以接受。
+     * 换成在 Kotlin 侧分组的话就得先把全表支出查出来，正是分页要消灭的东西。
+     */
+    @Query(
+        """
+        SELECT date(t.occurred_at / 1000, 'unixepoch', 'localtime') AS day,
+               COALESCE(SUM(t.amount), 0) AS totalCents
+        FROM transaction_record t
+        WHERE t.deleted_at IS NULL AND t.direction = 'EXPENSE'
+        GROUP BY day
+        ORDER BY day DESC
+        """,
+    )
+    fun observeDailyExpenseTotals(): Flow<List<DailyExpenseTotal>>
 
     @Query("SELECT * FROM transaction_record WHERE id = :id")
     suspend fun getById(id: Long): TransactionEntity?

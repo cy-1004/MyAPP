@@ -1,5 +1,9 @@
 package com.myapp.feature.ledger.data
 
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
 import com.myapp.core.common.contract.LedgerWriter
 import com.myapp.core.common.contract.WidgetRefreshNotifier
 import com.myapp.core.common.di.IoDispatcher
@@ -12,6 +16,7 @@ import com.myapp.core.database.dao.TransactionWithCategory
 import com.myapp.core.database.model.BudgetAlertStateEntity
 import com.myapp.core.database.model.TransactionEntity
 import com.myapp.feature.ledger.notification.BudgetAlertNotifier
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
@@ -19,6 +24,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+
+/**
+ * 账目列表每页条数。比资讯的 50 小一档：账目行比文章行矮得多，
+ * 一屏能塞十几条，50 条差不多是三四屏，够预取又不至于一次查太多。
+ */
+private const val TRANSACTION_PAGE_SIZE = 40
 
 /**
  * 领域模型：一笔账目（带分类信息）。
@@ -177,9 +188,48 @@ class LedgerRepository @Inject constructor(
             list.map { it.toDomain() }
         }
 
-    /** 全部交易，按发生时间倒序。列表页用，Phase 1 不做筛选。 */
+    /**
+     * 全部交易，按发生时间倒序。
+     *
+     * **列表页已经改用 [pagedTransactions]**，这条留给真需要全量的地方
+     * （统计、备份）。别再拿它喂列表--自动记账每天往里加，全表查只会越来越慢。
+     */
     fun observeAll(): Flow<List<Transaction>> =
         transactionDao.observeAllWithCategory().map { list -> list.map { it.toDomain() } }
+
+    /**
+     * 列表分页流（PRD 4.5）。
+     *
+     * 改版前列表页是 `observeAll()`--**一条上限都没有**，每加一笔账就把全表重查、
+     * 重新映射、再在内存里按日期分组一遍。自动记账是天天在写的，这条迟早会咬人。
+     *
+     * `enablePlaceholders = false`：留空位要先 COUNT 一次全表，而这个列表不显示总条数。
+     */
+    fun pagedTransactions(): Flow<PagingData<Transaction>> = Pager(
+        config = PagingConfig(
+            pageSize = TRANSACTION_PAGE_SIZE,
+            maxSize = TRANSACTION_PAGE_SIZE * 4,
+            enablePlaceholders = false,
+        ),
+        pagingSourceFactory = { transactionDao.pagingAllWithCategory() },
+    ).flow.map { paging -> paging.map { it.toDomain() } }
+
+    /**
+     * 每天的支出合计（分），键是本地日期。列表的日期表头用。
+     *
+     * 分页之后一天的条目可能跨在两页之间，光看当前页加不出那天的合计，
+     * 所以单独订阅一份按天聚合的结果--`GROUP BY` 在 SQLite 里做完，
+     * 返回的行数是「天数」量级，比把分页数据凑齐便宜得多。
+     *
+     * 解析失败的行直接丢掉：这只是表头上的一个数字，
+     * 为一个显示用的合计让整个列表崩掉不划算。
+     */
+    fun observeDailyExpenseTotals(): Flow<Map<LocalDate, Long>> =
+        transactionDao.observeDailyExpenseTotals().map { rows ->
+            rows.mapNotNull { row ->
+                runCatching { LocalDate.parse(row.day) to row.totalCents }.getOrNull()
+            }.toMap()
+        }
 
     /** 任意区间的支出总和（分）。预算视图用自己算好的周期区间来查。 */
     fun observeExpenseSumInRange(start: Long, endExclusive: Long): Flow<Long> =

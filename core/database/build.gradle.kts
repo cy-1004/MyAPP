@@ -33,6 +33,13 @@ dependencies {
     // 调用方（:feature:settings）需要能拿到 kotlinx-serialization 运行时来编解码它
     api(libs.kotlinx.serialization.json)
 
+    // 分页查询（PRD 4.5）：room-paging 让 DAO 能直接返回 PagingSource，
+    // paging-common 是 PagingSource/PagingData 本身。
+    // api 而不是 implementation：DAO 的返回类型就是 PagingSource，
+    // 上层 Repository 要构造 Pager 就必须看得见这个类型。
+    api(libs.androidx.paging.common)
+    implementation(libs.androidx.room.paging)
+
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.test.ext.junit)

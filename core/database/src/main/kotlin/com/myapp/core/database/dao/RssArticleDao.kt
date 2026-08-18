@@ -1,11 +1,13 @@
 package com.myapp.core.database.dao
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.myapp.core.database.model.RssArticleEntity
 import com.myapp.core.database.model.RssArticleListRow
+import com.myapp.core.database.model.RssPagedArticleRow
 import kotlinx.coroutines.flow.Flow
 
 /** 列表首屏条数；滚到底再按这个步长追加（见 [RssArticleDao.observeArticles]）。 */
@@ -54,6 +56,43 @@ interface RssArticleDao {
         sourceId: Long? = null,
         limit: Int = DEFAULT_PAGE_SIZE,
     ): Flow<List<RssArticleListRow>>
+
+    /**
+     * 列表分页版（PRD 4.5）：条件与 [observeArticles] **完全一致，只是去掉 LIMIT**——
+     * 取多少由 Paging 的 `PagingConfig` 决定，SQL 里再写死 LIMIT 会跟它打架。
+     *
+     * 返回 `PagingSource` 而不是 Flow：Room 会自己接 `InvalidationTracker`，
+     * 表一变就让当前 PagingSource 失效、Paging 重新加载已持有的页。
+     * 改这条 query 时**记得同步改 [observeArticles]**（首页卡片等非分页场景还在用它）。
+     */
+    @Query(
+        """
+        SELECT rss_article.id AS id,
+               rss_article.source_id AS source_id,
+               rss_source.title AS source_title,
+               rss_article.link AS link,
+               rss_article.title AS title,
+               rss_article.summary AS summary,
+               rss_article.cover_image_url AS cover_image_url,
+               rss_article.published_at AS published_at,
+               rss_article.is_read AS is_read,
+               rss_article.is_favorite AS is_favorite
+        FROM rss_article
+        JOIN rss_source ON rss_article.source_id = rss_source.id
+        WHERE rss_source.deleted_at IS NULL
+          AND (:onlyUnread = 0 OR rss_article.is_read = 0)
+          AND (:onlyFavorite = 0 OR rss_article.is_favorite = 1)
+          AND (:groupName IS NULL OR rss_source.group_name = :groupName)
+          AND (:sourceId IS NULL OR rss_article.source_id = :sourceId)
+        ORDER BY rss_article.published_at DESC
+        """,
+    )
+    fun pagingArticles(
+        onlyUnread: Boolean = false,
+        onlyFavorite: Boolean = false,
+        groupName: String? = null,
+        sourceId: Long? = null,
+    ): PagingSource<Int, RssPagedArticleRow>
 
     /**
      * 当前筛选条件下的总条数，用于判断「还有没有更多」。

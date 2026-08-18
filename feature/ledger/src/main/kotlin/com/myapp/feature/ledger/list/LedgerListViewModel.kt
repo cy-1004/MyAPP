@@ -2,6 +2,8 @@ package com.myapp.feature.ledger.list
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.common.time.BudgetCycle
 import com.myapp.feature.ledger.data.Budget
@@ -13,6 +15,7 @@ import com.myapp.feature.ledger.data.LedgerSaveEvents
 import com.myapp.feature.ledger.data.Transaction
 import com.myapp.feature.ledger.notification.AutoLedgerNotifier
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -58,18 +61,27 @@ class LedgerListViewModel @Inject constructor(
     }
 
     /**
-     * 列表数据流：交易 + 当前预算 + 未识别条数组合。预算带在 state 里，
-     * 保存后 Snackbar 算「本期剩余」时直接读 state 不用再查一次。
+     * 账目分页流（PRD 4.5）。`cachedIn` 不能省：没有它，每次重订阅都会
+     * 从第一页重新加载，滚动位置和已加载的页全丢。
+     */
+    val transactions: Flow<PagingData<Transaction>> =
+        repository.pagedTransactions().cachedIn(viewModelScope)
+
+    /**
+     * 列表的「非分页」状态：预算 + 未识别条数 + 每天的支出合计。
+     *
+     * 每天的合计单独走一条聚合查询，不从分页数据里算--
+     * 一天的条目可能跨在两页之间，光看当前页加不出那天的总额（详见 Repository 那条注释）。
      */
     val state: StateFlow<ListUiState> = combine(
-        repository.observeAll(),
         budgetRepository.observeCurrent(),
         prefs.unrecognized,
-    ) { transactions, budget, unrecognized ->
+        repository.observeDailyExpenseTotals(),
+    ) { budget, unrecognized, dailyExpense ->
         ListUiState(
-            transactions = transactions,
             budget = budget,
             unrecognizedCount = unrecognized.size,
+            dailyExpenseCents = dailyExpense,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -130,23 +142,17 @@ class LedgerListViewModel @Inject constructor(
     }
 }
 
-/** 列表页 UI 状态。Phase 1 不分 loading/error：Room Flow 首帧 emptyList() 即空态。 */
+/**
+ * 列表页的「非分页」状态。账目本身走 [LedgerListViewModel.transactions] 那条
+ * `PagingData` 流，不放在这里。
+ *
+ * [dailyExpenseCents] 是每个本地日期的支出合计（分），日期表头直接查这个 map。
+ */
 data class ListUiState(
-    val transactions: List<Transaction> = emptyList(),
     val budget: Budget? = null,
     val unrecognizedCount: Int = 0,
+    val dailyExpenseCents: Map<LocalDate, Long> = emptyMap(),
 )
 
-/** 把 epochMilli 按本地日期分组，保留倒序。 */
-fun groupByDate(transactions: List<Transaction>): List<DateGroup> {
-    if (transactions.isEmpty()) return emptyList()
-    return transactions
-        .groupBy { with(AppTime) { it.occurredAt.toLocalDate() } }
-        .map { (date, items) -> DateGroup(date, items) }
-        .sortedByDescending { it.date }
-}
-
-data class DateGroup(
-    val date: java.time.LocalDate,
-    val items: List<Transaction>,
-)
+/** 一笔账目的本地发生日期。分页列表靠它判断要不要在前面插一个日期表头。 */
+fun Transaction.localDate(): LocalDate = with(AppTime) { occurredAt.toLocalDate() }

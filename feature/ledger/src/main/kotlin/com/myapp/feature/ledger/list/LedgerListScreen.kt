@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -55,6 +54,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.myapp.core.common.time.AppFormatters
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.designsystem.component.EmptyState
@@ -84,6 +86,7 @@ fun LedgerListScreen(
     viewModel: LedgerListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val transactions = viewModel.transactions.collectAsLazyPagingItems()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // onSaved 触发的 Snackbar 事件
@@ -152,8 +155,9 @@ fun LedgerListScreen(
             }
         },
     ) { innerPadding ->
-        val groups = groupByDate(state.transactions)
-        if (state.transactions.isEmpty() && state.unrecognizedCount == 0) {
+        // 空态要等首帧加载完再显示，否则进页面会闪一下「还没有记账记录」
+        val loaded = transactions.loadState.refresh !is LoadState.Loading
+        if (loaded && transactions.itemCount == 0 && state.unrecognizedCount == 0) {
             EmptyState(
                 text = "还没有记账记录",
                 modifier = Modifier.padding(innerPadding),
@@ -181,11 +185,21 @@ fun LedgerListScreen(
                         )
                     }
                 }
-                groups.forEach { group ->
-                    item(key = "header-${group.date}") {
-                        DateHeader(date = group.date, items = group.items)
-                    }
-                    items(items = group.items, key = { it.id }) { tx ->
+                // 日期表头不再靠「先分组再遍历」--分页拿不到完整的组。
+                // 改成逐条判断：这一条的日期跟前一条不同，就在它前面画一个表头。
+                // 列表本来就按时间倒序，同一天必然连续，这个判断是充分的。
+                items(
+                    count = transactions.itemCount,
+                    key = transactions.itemKey { it.id },
+                ) { index ->
+                    // enablePlaceholders = false，理论上不会是 null；判空只为不崩
+                    val tx = transactions[index] ?: return@items
+                    val date = tx.localDate()
+                    val previousDate = if (index == 0) null else transactions.peek(index - 1)?.localDate()
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        if (date != previousDate) {
+                            DateHeader(date = date, dayExpenseCents = state.dailyExpenseCents[date] ?: 0L)
+                        }
                         TransactionRow(
                             transaction = tx,
                             onClick = { onNavigate(Route.LedgerDetail(tx.id)) },
@@ -199,17 +213,21 @@ fun LedgerListScreen(
 
 }
 
+/**
+ * 日期表头。
+ *
+ * [dayExpenseCents] 由调用方从一条按天聚合的查询里取，**不是**把当前页的条目加起来--
+ * 分页之后一天的账目可能跨在两页之间，只加当前页会少算（详见 LedgerRepository 那条注释）。
+ */
 @Composable
-private fun DateHeader(date: java.time.LocalDate, items: List<Transaction>) {
+private fun DateHeader(date: java.time.LocalDate, dayExpenseCents: Long) {
     val today = AppTime.today()
     val label = when (date) {
         today -> "今天"
         today.minusDays(1) -> "昨天"
         else -> date.format(AppFormatters.dateWithYear)
     }
-    val dayExpense = items
-        .filter { it.direction == TransactionDirection.EXPENSE }
-        .sumOf { it.amountCents }
+    val dayExpense = dayExpenseCents
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
