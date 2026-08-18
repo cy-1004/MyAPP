@@ -97,6 +97,23 @@ class AppPreferences @Inject constructor(
         store.edit { it[Keys.KNOWLEDGE_DAILY_PUSH_ENABLED] = enabled }
     }
 
+    // ---- 笔记通知栏常驻快捷入口（PRD 3.4）----
+    /**
+     * 默认关闭：这是一条**常驻**通知，占着通知栏一行，得用户主动要才给。
+     *
+     * 这个开关只是「用户意愿」的存档，真正的挂/撤由 `:app` 层接线
+     * （MainActivity 收集这个 Flow、BootCompletedReceiver 开机读一次）——
+     * `:feature:settings` 不能直接调 `:feature:note` 的通知器（feature 之间不许互相依赖），
+     * 走一个共享的 DataStore 键比为一个开关新建跨模块契约划算。
+     */
+    val noteQuickEntryEnabled: Flow<Boolean> = store.data.map {
+        it[Keys.NOTE_QUICK_ENTRY_ENABLED] ?: false
+    }
+
+    suspend fun setNoteQuickEntryEnabled(enabled: Boolean) {
+        store.edit { it[Keys.NOTE_QUICK_ENTRY_ENABLED] = enabled }
+    }
+
     // ---- md 面试题库（PRD 3.7）----
     /**
      * 已导入的题库资源版本。0 = 从没导入过。
@@ -220,6 +237,7 @@ class AppPreferences @Inject constructor(
         val CLOUD_BACKUP_LAST_SUCCESS_AT = longPreferencesKey("backup.lastSuccessAt")
         val CLOUD_BACKUP_LAST_ERROR = stringPreferencesKey("backup.lastError")
         val KNOWLEDGE_DAILY_PUSH_ENABLED = booleanPreferencesKey("knowledge.dailyPushEnabled")
+        val NOTE_QUICK_ENTRY_ENABLED = booleanPreferencesKey("note.quickEntryEnabled")
         val INTERVIEW_ASSETS_VERSION = intPreferencesKey("interview.assetsVersion")
         val AI_ENABLED = booleanPreferencesKey("ai.enabled")
         val AI_WEB_SEARCH = booleanPreferencesKey("ai.webSearch")

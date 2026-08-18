@@ -29,6 +29,7 @@ import com.myapp.feature.knowledge.data.KnowledgeDailyDestination
 import com.myapp.feature.knowledge.navigation.KnowledgeGraphEntryPoint
 import com.myapp.feature.ledger.data.LedgerDeepLink
 import com.myapp.feature.ledger.navigation.LedgerGraphEntryPoint
+import com.myapp.feature.note.navigation.NoteGraphEntryPoint
 import com.myapp.feature.widget.data.WidgetNavTarget
 import com.myapp.feature.widget.data.WidgetScreens
 import com.myapp.feature.widget.di.WidgetDataProvider
@@ -155,6 +156,25 @@ fun MyApp(initialRoute: Route) {
                     launchSingleTop = true
                 }
                 knowledgeDailyTarget.consume()
+            }
+        }
+    }
+
+    // 通知栏常驻快捷入口点击 → 新建笔记页（MainActivity 写入，这里收集后导航）
+    val noteQuickEntryTarget = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            NoteGraphEntryPoint::class.java,
+        ).noteQuickEntryTarget()
+    }
+    LaunchedEffect(Unit) {
+        noteQuickEntryTarget.target.collect { open ->
+            if (open) {
+                // NoteDetail(id = 0) 就是新建，与待办同一套约定
+                navController.navigate(Route.NoteDetail()) {
+                    launchSingleTop = true
+                }
+                noteQuickEntryTarget.consume()
             }
         }
     }

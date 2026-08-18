@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.myapp.core.common.contract.KnowledgeItemKind
 import com.myapp.core.common.di.ApplicationScope
 import com.myapp.core.common.keepalive.KeepAliveStatusChecker
@@ -35,6 +36,9 @@ import com.myapp.feature.ledger.data.BudgetAlertTarget
 import com.myapp.feature.ledger.data.LedgerDeepLink
 import com.myapp.feature.ledger.notification.BudgetAlertNotifierExtras
 import com.myapp.feature.ledger.notification.LedgerNotifierExtras
+import com.myapp.feature.note.notify.NoteQuickEntryExtras
+import com.myapp.feature.note.notify.NoteQuickEntryNotifier
+import com.myapp.feature.note.notify.NoteQuickEntryTarget
 import com.myapp.feature.widget.WidgetIntents
 import com.myapp.feature.widget.data.WidgetNavTarget
 import com.myapp.ui.MyApp
@@ -76,6 +80,12 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var knowledgeDailyTarget: KnowledgeDailyTarget
 
+    @Inject
+    lateinit var noteQuickEntryTarget: NoteQuickEntryTarget
+
+    @Inject
+    lateinit var noteQuickEntryNotifier: NoteQuickEntryNotifier
+
     /**
      * null = 未读取完，splash 挂住；
      * true = 已完成保活自检（或老用户升级），进 Home；
@@ -106,6 +116,8 @@ class MainActivity : ComponentActivity() {
         handleKnowledgeDailyIntent(intent)
         // 预算预警通知点击：写入 BudgetAlertTarget，MyApp 收集后导航到预算页
         handleBudgetAlertIntent(intent)
+        // 通知栏常驻快捷入口点击：写入 NoteQuickEntryTarget，MyApp 收集后导航到新建笔记页
+        handleNoteQuickEntryIntent(intent)
 
         // 3. 异步读 onboarding 标志；老用户升级直接写 true 跳过向导
         appScope.launch {
@@ -155,6 +167,18 @@ class MainActivity : ComponentActivity() {
             runCatching {
                 if (appPreferences.knowledgeDailyPushEnabled.first()) {
                     KnowledgeDailyReceiver.scheduleNext(this@MainActivity)
+                }
+            }
+        }
+
+        // 笔记通知栏常驻快捷入口（PRD 3.4）：开关存在 DataStore，挂/撤在这里接线——
+        // :feature:settings 不能直接调 :feature:note 的通知器（feature 之间不许互相依赖）。
+        // 用 lifecycleScope 而不是 appScope：跟着 Activity 走，重建时自动重订，不会越攒越多。
+        // 每次启动都会重放一次当前值，所以用户手动划掉通知后，下次打开 App 它会自己回来。
+        lifecycleScope.launch {
+            runCatching {
+                appPreferences.noteQuickEntryEnabled.collect { enabled ->
+                    if (enabled) noteQuickEntryNotifier.show() else noteQuickEntryNotifier.cancel()
                 }
             }
         }
@@ -211,6 +235,13 @@ class MainActivity : ComponentActivity() {
         handleKnowledgeShareIntent(intent)
         handleKnowledgeDailyIntent(intent)
         handleBudgetAlertIntent(intent)
+        handleNoteQuickEntryIntent(intent)
+    }
+
+    /** 通知栏常驻快捷入口（PRD 3.4）点击拉起：没有参数，认出 extra 就够了。 */
+    private fun handleNoteQuickEntryIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(NoteQuickEntryExtras.OPEN_NEW_NOTE, false) != true) return
+        noteQuickEntryTarget.open()
     }
 
     private fun handleBudgetAlertIntent(intent: Intent?) {

@@ -17,6 +17,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myapp.core.designsystem.component.LocalBottomBarHeight
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
@@ -56,6 +58,7 @@ fun SettingsScreen(
 
     val listenerOn = viewModel.notificationListenerEnabled
     val listenerConnected = viewModel.notificationListenerConnected
+    val noteQuickEntry by viewModel.noteQuickEntryEnabled.collectAsStateWithLifecycle(initialValue = false)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -126,6 +129,14 @@ fun SettingsScreen(
                     onClick = { onNavigate(Route.PeriodReminderSettings) },
                 )
             }
+            item(key = "note_quick_entry") {
+                SettingsSwitchItem(
+                    title = "笔记快捷入口",
+                    description = "在通知栏常驻一条入口，点一下直接新建笔记",
+                    checked = noteQuickEntry,
+                    onCheckedChange = viewModel::setNoteQuickEntryEnabled,
+                )
+            }
             item(key = "keepalive") {
                 SettingsItem(
                     title = "保活自检",
@@ -174,6 +185,48 @@ fun SettingsScreen(
                     onClick = { onNavigate(Route.About) },
                 )
             }
+        }
+    }
+}
+
+/**
+ * 带开关的设置项。本页其余条目都是「点进去」，这条是就地切换--
+ * 为一个布尔开关单开一个页面不值当，但也不能把它做成看起来能点进去的样子，
+ * 所以整卡可点（点哪都是切换）+ 右侧 Switch 明示状态。
+ */
+@Composable
+private fun SettingsSwitchItem(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        onClick = { onCheckedChange(!checked) },
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.lg),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.appColors.textSecondary,
+                )
+            }
+            Switch(checked = checked, onCheckedChange = onCheckedChange)
         }
     }
 }

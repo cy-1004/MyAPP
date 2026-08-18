@@ -7,6 +7,7 @@ import com.myapp.core.common.contract.ReminderScheduler
 import com.myapp.core.common.di.ApplicationScope
 import com.myapp.core.datastore.AppPreferences
 import com.myapp.feature.knowledge.notify.KnowledgeDailyReceiver
+import com.myapp.feature.note.notify.NoteQuickEntryNotifier
 import com.myapp.feature.widget.WidgetAlarmReceiver
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -30,6 +31,9 @@ class BootCompletedReceiver : BroadcastReceiver() {
     lateinit var preferences: AppPreferences
 
     @Inject
+    lateinit var noteQuickEntryNotifier: NoteQuickEntryNotifier
+
+    @Inject
     @ApplicationScope
     lateinit var applicationScope: CoroutineScope
 
@@ -49,6 +53,10 @@ class BootCompletedReceiver : BroadcastReceiver() {
                         // 每日知识点推送闹钟，重启后要重建（PRD 3.8），仅在用户开启时才排
                         if (preferences.knowledgeDailyPushEnabled.first()) {
                             KnowledgeDailyReceiver.scheduleNext(context)
+                        }
+                        // 笔记常驻快捷入口（PRD 3.4）：重启会清掉通知栏，开着就重新挂上
+                        if (preferences.noteQuickEntryEnabled.first()) {
+                            noteQuickEntryNotifier.show()
                         }
                     } finally {
                         pendingResult.finish()

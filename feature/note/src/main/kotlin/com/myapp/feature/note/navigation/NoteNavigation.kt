@@ -5,6 +5,20 @@ import androidx.navigation.compose.composable
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.note.edit.NoteEditScreen
 import com.myapp.feature.note.list.NoteListScreen
+import com.myapp.feature.note.notify.NoteQuickEntryTarget
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+
+/**
+ * 常驻快捷入口点击 → 新建笔记页深链，:app 用 EntryPointAccessors 取用
+ * （与 KnowledgeGraphEntryPoint / LedgerGraphEntryPoint 同一套模式）。
+ */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface NoteGraphEntryPoint {
+    fun noteQuickEntryTarget(): NoteQuickEntryTarget
+}
 
 /**
  * 笔记的导航图。只在 :app 的 AppNavHost 里注册一次，其余模块无感知。
