@@ -39,13 +39,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myapp.core.common.time.AppTime
 import com.myapp.core.designsystem.component.AppCard
 import com.myapp.core.designsystem.component.EmptyState
+import com.myapp.core.designsystem.component.GlowProgressTrack
 import com.myapp.core.designsystem.component.LocalBottomBarHeight
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
 import com.myapp.feature.ledger.data.CyclePerformance
 import com.myapp.feature.ledger.ui.BudgetDialog
 import com.myapp.feature.ledger.ui.CategoryExpenseRow
-import com.myapp.feature.ledger.ui.ProgressTrack
 import com.myapp.feature.ledger.ui.cycleRangeText
 import com.myapp.feature.ledger.ui.formatCentsToYuan
 import com.myapp.feature.ledger.ui.progressColor
@@ -175,10 +175,13 @@ private fun OverviewCard(state: BudgetUiState) {
             color = if (overspent) MaterialTheme.appColors.danger else MaterialTheme.colorScheme.onSurface,
         )
 
-        Box(modifier = Modifier.padding(vertical = Spacing.sm)) {
-            ProgressTrack(
+        // 这条是预算页的主指标，用带光晕的版本（PRD 6.1）。
+        // 统计页和分类行仍用不发光的 ProgressTrack--一屏十几条全发光就成噪声了
+        Box(modifier = Modifier.padding(vertical = Spacing.xs)) {
+            GlowProgressTrack(
                 fraction = state.spentFraction,
                 color = progressColor(state.spentFraction, overspent),
+                emphasized = overspent,
             )
         }
 
