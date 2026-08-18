@@ -21,11 +21,16 @@ data class InterviewChapterSummary(
     @androidx.room.ColumnInfo(name = "question_count") val questionCount: Int,
 )
 
-/** 抽题候选：只要 id/key/排序，不带正文（正文等选中之后再单独查）。 */
+/**
+ * 抽题候选：只要 id/key，不带正文（正文等选中之后再单独查）。
+ *
+ * 不带 `sort_order`：那是**章内**序号，跨章节没有可比性，
+ * 曾被抽题算法当成全局序用（见 KnowledgeReviewSelector.PoolCandidate 的注释）。
+ * 列表顺序由下面 SQL 的 ORDER BY 保证，调用方直接用列表序即可。
+ */
 data class InterviewQuestionCandidate(
     val id: Long,
     @androidx.room.ColumnInfo(name = "question_key") val key: String,
-    @androidx.room.ColumnInfo(name = "sort_order") val sortOrder: Int,
 )
 
 @Dao
@@ -76,8 +81,7 @@ interface InterviewDao {
     @Query(
         """
         SELECT interview_question.id AS id,
-               interview_question.question_key AS question_key,
-               interview_question.sort_order AS sort_order
+               interview_question.question_key AS question_key
         FROM interview_question
         JOIN interview_chapter ON interview_question.chapter_id = interview_chapter.id
         WHERE interview_chapter.in_pool = 1

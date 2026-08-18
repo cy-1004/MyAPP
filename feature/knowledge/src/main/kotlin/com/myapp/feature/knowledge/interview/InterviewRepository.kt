@@ -82,6 +82,10 @@ class InterviewRepository @Inject constructor(
     /**
      * 今天该看哪道题。池里没有在用的章节时返回 null，
      * 由调用方决定降级到什么（首页卡片降级到笔记，见 KnowledgeRepository）。
+     *
+     * **有副作用**：选中后立刻记一笔「今天推过了」（[KnowledgeReviewSelector.onShown]），
+     * 否则用户不点反馈的话这题明天还在候选池里。写库是幂等的--同一天再调
+     * 返回同一条、不重复写，08:00 的通知与首页卡片因此始终一致。
      */
     suspend fun pickDaily(): InterviewQuestionUi? = withContext(io) {
         val candidates = dao.poolCandidates()
@@ -102,12 +106,31 @@ class InterviewRepository @Inject constructor(
 
         val today = AppTime.run { today().toEpochMilliAtStartOfDay() }
         val picked = KnowledgeReviewSelector.pickNext(
-            candidates = candidates.map { PoolCandidate(sourceId = it.id, sortOrder = it.sortOrder) },
+            candidates = candidates.map { PoolCandidate(sourceId = it.id) },
             reviews = reviewsById,
             today = today,
         ) ?: return@withContext null
 
+        markShown(picked.sourceId, reviewsById[picked.sourceId], today)
         getQuestion(picked.sourceId)
+    }
+
+    /** 落「今天推过了」这一笔。已经是今天的记录时 [KnowledgeReviewSelector.onShown] 原样返回，这里就不写库。 */
+    private suspend fun markShown(questionId: Long, current: KnowledgeReview?, today: Long) {
+        if (current?.lastShownAt == today) return
+        val question = dao.getQuestion(questionId) ?: return
+        val existing = dao.getReview(question.key)
+        val next = KnowledgeReviewSelector.onShown(current, questionId, today)
+        dao.upsertReview(
+            InterviewReviewEntity(
+                id = existing?.id ?: 0L,
+                questionKey = question.key,
+                intervalLevel = next.intervalLevel,
+                nextDueAt = next.nextDueAt,
+                lastShownAt = next.lastShownAt,
+                updatedAt = AppTime.now(),
+            ),
+        )
     }
 
     /** 「已掌握」/「再看看」反馈，推进或重置间隔档位（PRD 3.8）。 */
