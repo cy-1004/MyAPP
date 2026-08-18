@@ -1,5 +1,6 @@
 package com.myapp.feature.period.data
 
+import com.myapp.core.common.contract.PeriodReminderRefresher
 import com.myapp.core.common.contract.ReminderRequest
 import com.myapp.core.common.contract.ReminderScheduler
 import com.myapp.core.common.contract.ReminderSource
@@ -106,8 +107,64 @@ private const val MAX_ONGOING_DAYS = 15
  */
 private const val PERIOD_REMINDER_KEY = "period:next"
 
-/** 提醒统一在当天上午 9 点触发。 */
+/** 「预计开始」提醒在当天上午 9 点触发。 */
 private const val REMINDER_HOUR = 9
+
+/**
+ * 经期中每日关怀提醒（PRD 3.2）只推前 3 天。
+ *
+ * 前几天通常最难受，也最需要人照顾；推满整个经期的话后几天往往已经缓过来了，
+ * 提醒会显得多余，多余的提醒最后的下场就是被随手划掉、连带前几天的一起忽略。
+ */
+internal const val CARE_REMINDER_DAYS = 3
+
+/**
+ * 关怀提醒在傍晚 19:00 触发。
+ *
+ * 不跟「预计开始」提醒的 09:00 对齐是故意的：这条提醒的目的是让人**做点什么**
+ * （带点东西回去、晚上多照顾一下），早上 9 点看到基本干不了什么。
+ */
+internal const val CARE_REMINDER_HOUR = 19
+
+/** 关怀提醒按「第几天」分成独立的 key，才能各自注册/撤销。 */
+private fun careReminderKey(day: Int) = "period:care:$day"
+
+/** 关怀提醒的一次触发。[day] 从 1 开始。 */
+internal data class CareReminder(val day: Int, val triggerAtMillis: Long)
+
+/**
+ * 这次经期还该发哪几条关怀提醒。纯函数，不碰 DAO/DataStore，方便单测。
+ *
+ * 三种情况会让某一天被跳过：
+ * - 那天的 19:00 已经过了（比如晚上 11 点才补记开始日）--> 不排过去的时间点，
+ *   `AlarmManager` 对过去的时间会立刻触发，补记一次就弹一串旧提醒
+ * - 已经记了结束日、且那天在结束日之后 --> 她提前结束了，别再提醒
+ * - 全都不满足 --> 返回空表，调用方据此把三条闹钟全撤掉
+ */
+internal fun careReminderPlan(
+    startDate: LocalDate,
+    endDate: LocalDate?,
+    now: Long,
+): List<CareReminder> = (1..CARE_REMINDER_DAYS).mapNotNull { day ->
+    val date = startDate.plusDays((day - 1).toLong())
+    if (endDate != null && date.isAfter(endDate)) return@mapNotNull null
+    val triggerAt = with(AppTime) { date.toEpochMilliAtTime(CARE_REMINDER_HOUR) }
+    if (triggerAt <= now) return@mapNotNull null
+    CareReminder(day = day, triggerAtMillis = triggerAt)
+}
+
+/**
+ * 第 N 天的提醒文案。
+ *
+ * **人称是第三人称，收件人是记录者本人**--这个模块是用户替对象记的，
+ * 写成「你的经期开始了」就完全搞反了对象。改文案前先看交接文档里这条约定。
+ * 每天不重样：三天推一模一样的字，第二天起就自动忽略了。
+ */
+private fun careReminderBody(day: Int): String = when (day) {
+    1 -> "开始了。倒杯热水，少安排冷的吃的。"
+    2 -> "今天往往最难受，别安排太累的事。"
+    else -> "还没缓过来，问一句今天怎么样。"
+}
 
 @Singleton
 class PeriodRepository @Inject constructor(
@@ -115,7 +172,7 @@ class PeriodRepository @Inject constructor(
     private val reminderScheduler: ReminderScheduler,
     private val appPreferences: AppPreferences,
     @IoDispatcher private val io: CoroutineDispatcher,
-) : ReminderSource {
+) : ReminderSource, PeriodReminderRefresher {
 
     fun observeState(): Flow<PeriodState> = dao.observeAll().map { list ->
         // today 每次订阅取一次即可：跨过零点最多是天数晚一步刷新，
@@ -150,6 +207,9 @@ class PeriodRepository @Inject constructor(
             .firstOrNull { !it.startDate.isAfter(date) && (it.endDate == null || it.endDate.isBefore(date)) }
             ?: return@withContext
         dao.setEndDate(id = target.id, endDate = date.toEpochDay(), now = AppTime.now())
+        // 只重排关怀提醒：结束日不参与「下一次预计开始」的推算（那个只看各次的起始日），
+        // 但提前结束意味着后面几天的关怀提醒该撤掉
+        rescheduleCareReminders()
     }
 
     /** 直接改一条记录的起止与备注，供日历里长按修改用。 */
@@ -178,9 +238,14 @@ class PeriodRepository @Inject constructor(
         rescheduleNextReminder()
     }
 
-    /** 开机重建用：只有一条「下一次预计开始」的提醒。 */
+    /** 开机重建用：一条「下一次预计开始」+ 本次经期还没到点的关怀提醒。 */
     override suspend fun pendingReminders(): List<ReminderRequest> = withContext(io) {
-        listOfNotNull(nextReminderRequest())
+        listOfNotNull(nextReminderRequest()) + careReminderRequests()
+    }
+
+    /** 实现 [PeriodReminderRefresher]：设置页改完提醒相关设置后调，让新设置立刻生效。 */
+    override suspend fun refresh(): Unit = withContext(io) {
+        rescheduleNextReminder()
     }
 
     /** 用最近的记录重算预测，覆盖式重排提醒；没有足够数据时取消旧的。 */
@@ -190,6 +255,40 @@ class PeriodRepository @Inject constructor(
             reminderScheduler.schedule(request.key, request.triggerAtMillis, request.title, request.body)
         } else {
             reminderScheduler.cancel(PERIOD_REMINDER_KEY)
+        }
+        rescheduleCareReminders()
+    }
+
+    /**
+     * 重排关怀提醒：**先把三条全撤掉，再按需重排**。
+     *
+     * 逐条比对差异不如整体覆盖简单可靠--记录被删、起始日改动、提前记了结束日、
+     * 开关被关掉，每一种都会让旧的那几条失效，且失效的是哪几条各不相同。
+     * 就三条闹钟，全撤全排的代价可以忽略。
+     */
+    private suspend fun rescheduleCareReminders() {
+        (1..CARE_REMINDER_DAYS).forEach { reminderScheduler.cancel(careReminderKey(it)) }
+        careReminderRequests().forEach {
+            reminderScheduler.schedule(it.key, it.triggerAtMillis, it.title, it.body)
+        }
+    }
+
+    /**
+     * 本次经期还没到点的关怀提醒。
+     *
+     * 只看最近一条记录：更早的记录要么已经过去、要么被这条覆盖，都不该再提醒。
+     * 哪几天该发交给纯函数 [careReminderPlan]，这里只负责读开关、读记录、套文案。
+     */
+    private suspend fun careReminderRequests(): List<ReminderRequest> {
+        if (!appPreferences.periodCareReminderEnabled.first()) return emptyList()
+        val latest = dao.getLatest()?.toDomain() ?: return emptyList()
+        return careReminderPlan(latest.startDate, latest.endDate, AppTime.now()).map {
+            ReminderRequest(
+                key = careReminderKey(it.day),
+                triggerAtMillis = it.triggerAtMillis,
+                title = "她的经期·第 ${it.day} 天",
+                body = careReminderBody(it.day),
+            )
         }
     }
 

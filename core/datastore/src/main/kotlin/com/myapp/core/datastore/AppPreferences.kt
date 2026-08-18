@@ -97,6 +97,22 @@ class AppPreferences @Inject constructor(
         store.edit { it[Keys.KNOWLEDGE_DAILY_PUSH_ENABLED] = enabled }
     }
 
+    // ---- 经期中每日关怀提醒（PRD 3.2）----
+    /**
+     * 默认**开启**：这个功能是用户明确点名要的，装上就该工作，
+     * 不像云备份/AI 那种「碰了隐私边界、必须先知情同意」的开关。
+     * 频率也低（一个周期只推经期前 3 天、每天一条），不至于变成骚扰。
+     *
+     * 改这个开关必须走 `PeriodReminderRefresher`--只写 DataStore 撤不掉已注册的闹钟。
+     */
+    val periodCareReminderEnabled: Flow<Boolean> = store.data.map {
+        it[Keys.PERIOD_CARE_REMINDER_ENABLED] ?: true
+    }
+
+    suspend fun setPeriodCareReminderEnabled(enabled: Boolean) {
+        store.edit { it[Keys.PERIOD_CARE_REMINDER_ENABLED] = enabled }
+    }
+
     // ---- 笔记通知栏常驻快捷入口（PRD 3.4）----
     /**
      * 默认关闭：这是一条**常驻**通知，占着通知栏一行，得用户主动要才给。
@@ -238,6 +254,7 @@ class AppPreferences @Inject constructor(
         val CLOUD_BACKUP_LAST_ERROR = stringPreferencesKey("backup.lastError")
         val KNOWLEDGE_DAILY_PUSH_ENABLED = booleanPreferencesKey("knowledge.dailyPushEnabled")
         val NOTE_QUICK_ENTRY_ENABLED = booleanPreferencesKey("note.quickEntryEnabled")
+        val PERIOD_CARE_REMINDER_ENABLED = booleanPreferencesKey("period.careReminderEnabled")
         val INTERVIEW_ASSETS_VERSION = intPreferencesKey("interview.assetsVersion")
         val AI_ENABLED = booleanPreferencesKey("ai.enabled")
         val AI_WEB_SEARCH = booleanPreferencesKey("ai.webSearch")

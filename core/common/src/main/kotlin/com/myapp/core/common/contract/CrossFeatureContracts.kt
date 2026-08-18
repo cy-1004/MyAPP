@@ -71,6 +71,18 @@ interface ReminderSource {
 }
 
 /**
+ * 经期提醒重排。由 :feature:period 实现，供设置页在改了提醒相关设置后立刻生效。
+ *
+ * 为什么需要它：提醒的触发时间是**写设置时算好、注册进 AlarmManager** 的，
+ * 光改 DataStore 不会动已经注册的闹钟。而 [ReminderScheduler.rescheduleAll] 只增不删，
+ * 关掉某类提醒时撤不掉旧闹钟——必须由持有业务逻辑的 :feature:period 自己
+ * 「先撤再按需重排」。设置页不能直接依赖 :feature:period，所以走这条契约。
+ */
+interface PeriodReminderRefresher {
+    suspend fun refresh()
+}
+
+/**
  * 知识源（PRD 4.7.4）。
  * 当前实现是「assets 里的 md 面试题库」（PRD 3.7 改版），
  * 之前是「飞书公开网页 + WebView 正文提取」——换实现时上层没有改动，

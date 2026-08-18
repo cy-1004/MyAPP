@@ -123,8 +123,8 @@ fun SettingsScreen(
             }
             item(key = "period_reminder") {
                 SettingsItem(
-                    title = "经期提醒提前天数",
-                    description = "自定义预计经期开始日前几天提醒",
+                    title = "经期提醒",
+                    description = "开始前几天提醒，以及经期中每天的关怀提醒",
                     enabled = true,
                     onClick = { onNavigate(Route.PeriodReminderSettings) },
                 )
