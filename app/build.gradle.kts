@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.myapp.android.compose)
     alias(libs.plugins.myapp.android.hilt)
     alias(libs.plugins.kotlin.serialization)
+    // 把 :benchmark 生成的 Baseline Profile 打进 APK（PRD 4.5）
+    alias(libs.plugins.androidx.baselineprofile)
 }
 
 android {
@@ -92,6 +94,13 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
+
+    // ---- 性能（PRD 4.5 / 6.4）----
+    // profileinstaller 负责在安装/首启时把 Baseline Profile 真正交给 ART。
+    // 少了它，profile 打进了 APK 也不会生效，冷启动一点都不会变快。
+    implementation(libs.androidx.profileinstaller)
+    // 生成侧：:benchmark 跑出来的 profile 由插件写回 app/src/release/generated/
+    baselineProfile(projects.benchmark)
 
     // ---- 测试 ----
     testImplementation(libs.junit)

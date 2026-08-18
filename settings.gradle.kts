@@ -50,3 +50,9 @@ include(":feature:widget")          // 桌面小组件       P1
 include(":feature:knowledge")       // 飞书公开页/知识点 P1
 include(":feature:feed")            // RSS 资讯        P2
 include(":feature:settings")      // 设置 + 保活自检   P1
+
+// ---- 度量层：不进包，只在本机跑 ----
+// Macrobenchmark + Baseline Profile 生成（PRD 4.5 / 6.4）。
+// 它是 com.android.test 模块：产出一个独立的测试 APK 去驱动 :app，
+// 不会被 :app 依赖，也不会进任何发布产物。
+include(":benchmark")

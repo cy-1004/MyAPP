@@ -70,6 +70,8 @@ androidxTestCore = "1.6.1"
 robolectric = "4.14.1"
 espresso = "3.6.1"
 benchmarkMacro = "1.3.4"
+uiautomator = "2.3.0"
+profileinstaller = "1.4.1"
 
 [libraries]
 # --- AndroidX 基础 ---
@@ -158,6 +160,10 @@ androidx-test-core = { group = "androidx.test", name = "core", version.ref = "an
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "benchmarkMacro" }
+# Macrobenchmark 用 UiAutomator 驱动被测 App（它是跨进程测试，碰不到 Compose 测试 API）
+androidx-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
+# 装进 App 里，负责在安装/首启时把 Baseline Profile 真正写进 ART。少了它 profile 不生效
+androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
 
 # --- 供 build-logic 约定插件以依赖形式引用 Gradle 插件 ---
 android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }
@@ -173,6 +179,12 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+# :benchmark 是 com.android.test 模块（自成一个被测 App 之外的测试 APK）。
+# **不能带 version.ref**：AGP 已经由 build-logic 的 includeBuild 放到 classpath 上了，
+# 再声明一次版本会报「plugin is already on the classpath with an unknown version」。
+android-test = { id = "com.android.test" }
+# 自动生成 nonMinifiedRelease / benchmarkRelease 变体，并把生成的 profile 塞进 :app
+androidx-baselineprofile = { id = "androidx.baselineprofile", version.ref = "benchmarkMacro" }
 
 # --- 本项目自定义的约定插件（定义在 build-logic 中）---
 myapp-android-application = { id = "myapp.android.application" }

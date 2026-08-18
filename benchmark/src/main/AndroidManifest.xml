@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Macrobenchmark 要跨进程读被测 App 的 trace，需要 WRITE_EXTERNAL_STORAGE 落 perfetto 文件；
+      在自检/清理阶段还需要能杀掉被测进程。这两条只存在于测试 APK 里，不进发布包。
+    -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage"
+        xmlns:tools="http://schemas.android.com/tools" />
+
+    <!-- 需要枚举被测 App 的包（targetSdk 30+ 的包可见性限制） -->
+    <queries>
+        <package android:name="com.myapp" />
+    </queries>
+
+</manifest>
