@@ -71,13 +71,14 @@ class NoteRepository @Inject constructor(
 ) : NoteWriter, NoteBrowser {
 
     /**
-     * 列表查询。三种模式：
-     *   - query 非空：FTS 全文搜索
-     *   - tag 非空：按标签筛选
+     * 列表查询。query 与 tag 可以同时生效：
+     *   - query 非空：先走 FTS 全文搜索；tag 也非空时再在内存里按标签过滤结果
+     *   - 只有 tag 非空：按标签筛选
      *   - 都空：全部
      *
-     * query 与 tag 同时非空时取 query 优先（搜索是更强的意图）。
-     * 组合查询 V1 不做，避免 FTS MATCH 与 LIKE 的转义叠加。
+     * 组合查询不在 SQL 层做（避免 FTS MATCH 与 LIKE 的转义叠加），
+     * 而是拿 FTS 的结果集（通常很小）在 Kotlin 里再筛一遍标签——
+     * 结果集小是因为 FTS 已经先做了一轮强过滤，这里的开销可以忽略。
      */
     fun observe(query: String?, tag: String?): Flow<List<Note>> {
         val source = when {
@@ -85,7 +86,14 @@ class NoteRepository @Inject constructor(
             !tag.isNullOrBlank() -> dao.observeByTag(tag)
             else -> dao.observeAll()
         }
-        return source.map { list -> list.map { it.toDomain() } }
+        return source.map { list ->
+            val notes = list.map { it.toDomain() }
+            if (!query.isNullOrBlank() && !tag.isNullOrBlank()) {
+                notes.filter { tag in it.tags }
+            } else {
+                notes
+            }
+        }
     }
 
     fun observeById(id: Long): Flow<Note?> = dao.observeById(id).map { it?.toDomain() }

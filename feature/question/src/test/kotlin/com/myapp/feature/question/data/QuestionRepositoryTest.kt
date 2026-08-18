@@ -5,6 +5,7 @@ import com.myapp.core.database.dao.QuestionDao
 import com.myapp.core.database.model.QuestionEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -218,7 +219,59 @@ class QuestionRepositoryTest {
         repo.convertToNote(id)
         assertEquals(listOf("疑问"), noteWriter.calls[0].tags)
     }
+
+    @Test
+    fun `observe - query 与 tag 同时非空时在 FTS 结果里再按 tag 过滤`() = runTest {
+        val fake = FakeQuestionDao()
+        fake.searchResults = listOf(
+            testQuestionEntity(id = 1, content = "SOLID 原则", tags = "架构"),
+            testQuestionEntity(id = 2, content = "SOLID 反例", tags = "面试"),
+        )
+        val repo = QuestionRepository(fake, StandardTestDispatcher(testScheduler), FakeNoteWriter())
+
+        val result = repo.observe(query = "SOLID", tag = "架构").first()
+
+        assertEquals(1, result.size)
+        assertEquals(1L, result[0].id)
+    }
+
+    @Test
+    fun `observe - tag 在 FTS 结果里一条都不命中时返回空列表而不是回退到全部`() = runTest {
+        val fake = FakeQuestionDao()
+        fake.searchResults = listOf(
+            testQuestionEntity(id = 1, content = "SOLID 原则", tags = "面试"),
+        )
+        val repo = QuestionRepository(fake, StandardTestDispatcher(testScheduler), FakeNoteWriter())
+
+        val result = repo.observe(query = "SOLID", tag = "架构").first()
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `observe - 只有 query 非空时不做 tag 过滤`() = runTest {
+        val fake = FakeQuestionDao()
+        fake.searchResults = listOf(
+            testQuestionEntity(id = 1, content = "SOLID 原则", tags = "架构"),
+            testQuestionEntity(id = 2, content = "SOLID 反例", tags = "面试"),
+        )
+        val repo = QuestionRepository(fake, StandardTestDispatcher(testScheduler), FakeNoteWriter())
+
+        val result = repo.observe(query = "SOLID", tag = null).first()
+
+        assertEquals(2, result.size)
+    }
 }
+
+private fun testQuestionEntity(id: Long, content: String, tags: String) = QuestionEntity(
+    id = id,
+    uuid = "test-$id",
+    content = content,
+    tags = tags,
+    status = "OPEN",
+    createdAt = 0L,
+    updatedAt = 0L,
+)
 
 /** 简化 NoteWriter：记录所有调用，返回预设 id。 */
 private class FakeNoteWriter(private val returnsId: Long = 1L) : NoteWriter {
@@ -236,9 +289,12 @@ private class FakeQuestionDao : QuestionDao {
     private val store = mutableMapOf<Long, QuestionEntity>()
     private var nextId = 1L
 
+    /** 测试直接注入 FTS 该返回的行，绕开真实的 MATCH 查询——只测 Repository 侧的组合逻辑。 */
+    var searchResults: List<QuestionEntity> = emptyList()
+
     override fun observeAll(): Flow<List<QuestionEntity>> = flowOf(store.values.toList())
     override fun observeByTag(tag: String): Flow<List<QuestionEntity>> = emptyFlow()
-    override fun search(query: String): Flow<List<QuestionEntity>> = emptyFlow()
+    override fun search(query: String): Flow<List<QuestionEntity>> = flowOf(searchResults)
     override fun observeAllTags(): Flow<List<String>> = emptyFlow()
     override fun observeRandomPending(): Flow<QuestionEntity?> = emptyFlow()
     override fun observeById(id: Long): Flow<QuestionEntity?> = emptyFlow()

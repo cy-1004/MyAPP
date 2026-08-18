@@ -83,10 +83,13 @@ class QuestionRepository @Inject constructor(
 ) {
 
     /**
-     * 列表查询。三种模式（与 NoteRepository 同口径）：
-     *   - query 非空：FTS 全文搜索
-     *   - tag 非空：按标签筛选
+     * 列表查询。query 与 tag 可以同时生效（与 NoteRepository 同口径）：
+     *   - query 非空：先走 FTS 全文搜索；tag 也非空时再在内存里按标签过滤结果
+     *   - 只有 tag 非空：按标签筛选
      *   - 都空：全部
+     *
+     * 组合查询不在 SQL 层做（避免 FTS MATCH 与 LIKE 的转义叠加），
+     * 而是拿 FTS 的结果集（通常很小）在 Kotlin 里再筛一遍标签。
      *
      * Repository 不分组：ViewModel 在内存里按 status 分待解决/已解决/已归档。
      */
@@ -96,7 +99,14 @@ class QuestionRepository @Inject constructor(
             !tag.isNullOrBlank() -> dao.observeByTag(tag)
             else -> dao.observeAll()
         }
-        return source.map { list -> list.map { it.toDomain() } }
+        return source.map { list ->
+            val questions = list.map { it.toDomain() }
+            if (!query.isNullOrBlank() && !tag.isNullOrBlank()) {
+                questions.filter { tag in it.tags }
+            } else {
+                questions
+            }
+        }
     }
 
     fun observeById(id: Long): Flow<Question?> = dao.observeById(id).map { it?.toDomain() }
