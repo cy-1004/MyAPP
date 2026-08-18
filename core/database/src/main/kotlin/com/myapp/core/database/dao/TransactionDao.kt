@@ -153,28 +153,12 @@ interface TransactionDao {
     fun observeInRangeWithCategory(start: Long, endExclusive: Long): Flow<List<TransactionWithCategory>>
 
     /**
-     * 全部未删除条目，按发生时间倒序。列表页用。
-     * 与 [observeInRangeWithCategory] 同 JOIN，只是不要 WHERE 区间。
-     */
-    @Query(
-        """
-        SELECT t.id, t.uuid, t.amount, t.direction, t.category_id AS categoryId,
-               c.name AS categoryName, c.icon AS categoryIcon, c.color AS categoryColor,
-               t.merchant, t.channel, t.occurred_at AS occurredAt,
-               t.status, t.source, t.note
-        FROM transaction_record t
-        INNER JOIN category c ON c.id = t.category_id
-        WHERE t.deleted_at IS NULL
-        ORDER BY t.occurred_at DESC
-        """,
-    )
-    fun observeAllWithCategory(): Flow<List<TransactionWithCategory>>
-
-    /**
-     * 列表分页版（PRD 4.5）：与 [observeAllWithCategory] 同一条 query，
-     * 只是返回 `PagingSource`。取多少由 `PagingConfig` 决定。
+     * 账目列表查询（PRD 4.5）。与 [observeInRangeWithCategory] 同 JOIN，只是不要 WHERE 区间。
      *
-     * [observeAllWithCategory] 保留给备份/统计这类真需要全量的地方，别顺手删掉。
+     * **返回 `PagingSource` 而不是 Flow，且不写 `LIMIT`**：取多少由 `PagingConfig` 决定。
+     * 改版前这里是一条返回 `Flow<List<..>>` 的全表查询，每加一笔账就把全表重查一遍，
+     * 而自动记账是天天在写的。那条全表版本改完就没人用了，已删除--
+     * 备份走 `BackupDao` 自己的 `SELECT *`，统计走 [observeInRangeWithCategory]，都不经过它。
      */
     @Query(
         """

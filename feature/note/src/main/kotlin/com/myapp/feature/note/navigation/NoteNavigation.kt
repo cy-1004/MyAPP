@@ -1,8 +1,8 @@
 package com.myapp.feature.note.navigation
 
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
 import com.myapp.core.ui.navigation.Route
+import com.myapp.core.ui.navigation.sharedElementComposable
 import com.myapp.feature.note.edit.NoteEditScreen
 import com.myapp.feature.note.list.NoteListScreen
 import com.myapp.feature.note.notify.NoteQuickEntryTarget
@@ -24,15 +24,18 @@ interface NoteGraphEntryPoint {
  * 笔记的导航图。只在 :app 的 AppNavHost 里注册一次，其余模块无感知。
  *
  * 新建与编辑共用 [Route.NoteDetail]：id 默认 0 表示新建，与待办同一套约定。
+ *
+ * 两个目的地都用 [sharedElementComposable] 而非 `composable`：列表卡片要变形成
+ * 编辑页的正文区（PRD 6.2 共享元素转场），两端都得拿到自己的过渡作用域。
  */
 fun NavGraphBuilder.noteGraph(
     onNavigate: (Route) -> Unit,
     onBack: () -> Unit,
 ) {
-    composable<Route.NoteList> {
+    sharedElementComposable<Route.NoteList> {
         NoteListScreen(onNavigate = onNavigate)
     }
-    composable<Route.NoteDetail> {
+    sharedElementComposable<Route.NoteDetail> {
         NoteEditScreen(onBack = onBack)
     }
 }

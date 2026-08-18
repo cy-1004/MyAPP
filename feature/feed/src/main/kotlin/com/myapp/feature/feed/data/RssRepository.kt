@@ -14,7 +14,6 @@ import com.myapp.core.database.dao.DEFAULT_PAGE_SIZE
 import com.myapp.core.database.dao.RssArticleDao
 import com.myapp.core.database.dao.RssSourceDao
 import com.myapp.core.database.model.RssArticleEntity
-import com.myapp.core.database.model.RssArticleListRow
 import com.myapp.core.database.model.RssPagedArticleRow
 import com.myapp.core.database.model.RssSourceEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -46,7 +45,7 @@ data class RssSourceUi(
 
 /**
  * 列表用的轻量模型：**没有 `content`**。
- * 与 [RssArticleUi]（详情页用，带正文）分开，理由见 `RssArticleListRow` 的说明——
+ * 与 [RssArticleUi]（详情页用，带正文）分开，理由见 `RssPagedArticleRow` 的说明--
  * 列表一个字都用不到正文，查出来就是白读几 MB。
  */
 data class RssArticleListItem(
@@ -131,24 +130,11 @@ class RssRepository @Inject constructor(
         sourceDao.observeAll().map { list -> list.map { it.toUi() } }
 
     /**
-     * 列表查询。[limit] 由调用方按滚动进度递增（见 RssArticleListViewModel），
-     * 不再一次性把全部文章读出来。
-     */
-    fun observeArticles(filter: RssFilter, limit: Int): Flow<List<RssArticleListItem>> =
-        articleDao.observeArticles(
-            onlyUnread = filter is RssFilter.Unread,
-            onlyFavorite = filter is RssFilter.Favorite,
-            groupName = (filter as? RssFilter.Group)?.name,
-            sourceId = (filter as? RssFilter.Source)?.sourceId,
-            limit = limit,
-        ).map { rows -> attachSourceTitles(rows) }
-
-    /**
      * 列表分页流（PRD 4.5）。
      *
-     * `pageSize` 沿用原来的首屏条数 [DEFAULT_PAGE_SIZE]，交互手感跟改版前一致。
+     * `pageSize` 沿用改版前的首屏条数 [DEFAULT_PAGE_SIZE]，交互手感一致。
      * `maxSize` 是这次换 Paging 真正买到的东西：**滚得再远，内存里也只留 4 页**，
-     * 远处的页会被丢掉、滚回去再查。旧的「limit 递增」方案做不到这点——
+     * 远处的页会被丢掉、滚回去再查。旧的「limit 递增」方案做不到这点--
      * 它只会一路涨到把符合条件的文章全装进内存（实测库里有 5000+ 篇）。
      * `enablePlaceholders = false`：留空位得先 COUNT 一次全表，而这个列表
      * 不需要「一共多少条」这个信息，省掉这次扫描。
@@ -168,15 +154,6 @@ class RssRepository @Inject constructor(
             )
         },
     ).flow.map { paging -> paging.map { it.toListItem() } }
-
-    /** 当前筛选下的总条数，用于判断是否还能继续加载。 */
-    fun observeArticleCount(filter: RssFilter): Flow<Int> =
-        articleDao.observeArticleCount(
-            onlyUnread = filter is RssFilter.Unread,
-            onlyFavorite = filter is RssFilter.Favorite,
-            groupName = (filter as? RssFilter.Group)?.name,
-            sourceId = (filter as? RssFilter.Source)?.sourceId,
-        )
 
     /** 文章详情页用，带上来源标题；favorite/read 状态变更时随 Flow 自动刷新。 */
     fun observeArticle(id: Long): Flow<RssArticleUi?> = articleDao.observeById(id).map { article ->
@@ -372,27 +349,6 @@ class RssRepository @Inject constructor(
         return articles.mapNotNull { article ->
             val source = sources[article.sourceId] ?: return@mapNotNull null
             article.toUi(source.title)
-        }
-    }
-
-    @JvmName("attachSourceTitlesToRows")
-    private suspend fun attachSourceTitles(rows: List<RssArticleListRow>): List<RssArticleListItem> {
-        if (rows.isEmpty()) return emptyList()
-        val sources = sourceDao.getAll().associateBy { it.id }
-        return rows.mapNotNull { row ->
-            val source = sources[row.sourceId] ?: return@mapNotNull null
-            RssArticleListItem(
-                id = row.id,
-                sourceId = row.sourceId,
-                sourceTitle = source.title,
-                link = row.link,
-                title = row.title,
-                summary = row.summary,
-                coverImageUrl = row.coverImageUrl,
-                publishedAt = row.publishedAt,
-                isRead = row.isRead,
-                isFavorite = row.isFavorite,
-            )
         }
     }
 

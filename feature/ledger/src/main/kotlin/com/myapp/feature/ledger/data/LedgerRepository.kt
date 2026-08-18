@@ -189,19 +189,13 @@ class LedgerRepository @Inject constructor(
         }
 
     /**
-     * 全部交易，按发生时间倒序。
-     *
-     * **列表页已经改用 [pagedTransactions]**，这条留给真需要全量的地方
-     * （统计、备份）。别再拿它喂列表--自动记账每天往里加，全表查只会越来越慢。
-     */
-    fun observeAll(): Flow<List<Transaction>> =
-        transactionDao.observeAllWithCategory().map { list -> list.map { it.toDomain() } }
-
-    /**
      * 列表分页流（PRD 4.5）。
      *
-     * 改版前列表页是 `observeAll()`--**一条上限都没有**，每加一笔账就把全表重查、
+     * 改版前列表页走的是一条**没有任何上限**的全表查询，每加一笔账就把全表重查、
      * 重新映射、再在内存里按日期分组一遍。自动记账是天天在写的，这条迟早会咬人。
+     * 那条全表查询（`observeAll` / `TransactionDao.observeAllWithCategory`）改完就没人用了，
+     * 已一并删除--备份走的是 `BackupDao` 自己的 `SELECT *`，统计走 `observeInRange`，
+     * 都不经过它。
      *
      * `enablePlaceholders = false`：留空位要先 COUNT 一次全表，而这个列表不显示总条数。
      */

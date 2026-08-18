@@ -1,12 +1,15 @@
 package com.myapp.navigation
 
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.myapp.core.designsystem.theme.LocalSharedTransitionScope
 import com.myapp.core.designsystem.theme.MotionTokens
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.anniversary.navigation.anniversaryGraph
@@ -50,35 +53,47 @@ fun AppNavHost(
         }
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = startDestination::class,
-        modifier = modifier,
-        // 页面切换用 fade-through 而非左右滑：左右滑在竖向卡片流里显得廉价（PRD 6.2）
-        enterTransition = { fadeIn(MotionTokens.standardTween()) },
-        exitTransition = { fadeOut(MotionTokens.exitTween()) },
-    ) {
-        composable<Route.Home> {
-            HomeScreen(onNavigate = onNavigate)
-        }
+    // 共享元素转场的外层作用域（PRD 6.2）。
+    //
+    // 必须包在 NavHost **外面**：共享元素要在「离场页」和「入场页」之间连线，
+    // 而这两个页面分属两个不同的导航目的地，只有它们共同的祖先才看得见双方。
+    // 作用域经 LocalSharedTransitionScope 下发给各 feature（feature 之间不许互相依赖，
+    // 也不该为一个动效把作用域透传进每层 Composable 的签名）。
+    SharedTransitionLayout {
+        CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+            NavHost(
+                navController = navController,
+                startDestination = startDestination::class,
+                modifier = modifier,
+                // 页面切换用 fade-through 而非左右滑：左右滑在竖向卡片流里显得廉价（PRD 6.2）。
+                // 共享元素与它并行：整页淡入淡出的同时，被标记的那个元素连续变形，
+                // 这正是「点的那张卡片长成了这一页」的观感来源。
+                enterTransition = { fadeIn(MotionTokens.standardTween()) },
+                exitTransition = { fadeOut(MotionTokens.exitTween()) },
+            ) {
+                composable<Route.Home> {
+                    HomeScreen(onNavigate = onNavigate)
+                }
 
-        composable<Route.Feed> {
-            FeedScreen(onNavigate = onNavigate)
-        }
+                composable<Route.Feed> {
+                    FeedScreen(onNavigate = onNavigate)
+                }
 
-        todoGraph(onNavigate = onNavigate, onBack = onBack)
-        anniversaryGraph(onNavigate = onNavigate, onBack = onBack)
-        periodGraph(onNavigate = onNavigate, onBack = onBack)
-        noteGraph(onNavigate = onNavigate, onBack = onBack)
-        questionGraph(onNavigate = onNavigate, onBack = onBack)
-        ledgerGraph(onNavigate = onNavigate, onBack = onBack, navController = navController)
-        knowledgeGraph(onNavigate = onNavigate, onBack = onBack)
-        feedGraph(onNavigate = onNavigate, onBack = onBack)
-        settingsGraph(
-            onNavigate = onNavigate,
-            onBack = onBack,
-            onKeepAliveComplete = onKeepAliveComplete,
-            isFirstRun = startDestination::class == Route.KeepAliveCheck::class,
-        )
+                todoGraph(onNavigate = onNavigate, onBack = onBack)
+                anniversaryGraph(onNavigate = onNavigate, onBack = onBack)
+                periodGraph(onNavigate = onNavigate, onBack = onBack)
+                noteGraph(onNavigate = onNavigate, onBack = onBack)
+                questionGraph(onNavigate = onNavigate, onBack = onBack)
+                ledgerGraph(onNavigate = onNavigate, onBack = onBack, navController = navController)
+                knowledgeGraph(onNavigate = onNavigate, onBack = onBack)
+                feedGraph(onNavigate = onNavigate, onBack = onBack)
+                settingsGraph(
+                    onNavigate = onNavigate,
+                    onBack = onBack,
+                    onKeepAliveComplete = onKeepAliveComplete,
+                    isFirstRun = startDestination::class == Route.KeepAliveCheck::class,
+                )
+            }
+        }
     }
 }

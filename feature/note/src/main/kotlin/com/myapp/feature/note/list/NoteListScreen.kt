@@ -55,9 +55,11 @@ import com.myapp.core.designsystem.component.EmptyState
 import com.myapp.core.designsystem.component.LocalBottomBarHeight
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
+import com.myapp.core.designsystem.theme.sharedBoundsOrNothing
 import com.myapp.core.ui.navigation.Route
 import com.myapp.feature.note.data.Note
 import com.myapp.feature.note.ui.NoteListItem
+import com.myapp.feature.note.ui.noteCardSharedKey
 
 /**
  * 笔记列表（PRD 3.4）。
@@ -263,7 +265,13 @@ private fun SwipeableNoteRow(
             SwipeBackground(dismissState.dismissDirection)
         },
     ) {
-        NoteListItem(note = note, onClick = onClick)
+        // 共享元素标在**卡片本身**而不是 SwipeToDismissBox 上：
+        // Box 还包着侧滑露出的红色删除背景，把那块也一起变形过去就不对了
+        NoteListItem(
+            note = note,
+            onClick = onClick,
+            modifier = Modifier.sharedBoundsOrNothing(noteCardSharedKey(note.id)),
+        )
     }
 }
 

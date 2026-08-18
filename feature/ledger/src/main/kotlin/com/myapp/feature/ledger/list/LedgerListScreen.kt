@@ -33,9 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -68,6 +65,7 @@ import com.myapp.feature.ledger.data.Transaction
 import com.myapp.feature.ledger.data.TransactionDirection
 import com.myapp.feature.ledger.data.TransactionStatus
 import com.myapp.feature.ledger.data.parseAmountCents
+import com.myapp.feature.ledger.ui.SaveFeedbackOverlay
 import com.myapp.feature.ledger.ui.categoryColor
 import com.myapp.feature.ledger.ui.categoryIcon
 import com.myapp.feature.ledger.ui.yuanWithSymbol
@@ -75,8 +73,9 @@ import com.myapp.feature.ledger.ui.yuanWithSymbol
 /**
  * 记账列表（PRD 3.6.3）。
  *
- * 顶部齿轮进预算设置；FAB + 进新建；列表按日期分组显示，
- * 保存成功后 Snackbar 报「已记录 ￥X，本期剩余 ￥Y（命中分类预算时追加分类剩余/超支）」。
+ * 顶部齿轮进预算设置；FAB + 进新建；列表分页展示、按日期插表头。
+ * 保存成功后弹即时提示浮层（[SaveFeedbackOverlay]，PRD 3.6.2）：
+ * 金额从 0 滚动 + 预算进度条推进 + 本期/该分类剩余。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,40 +86,24 @@ fun LedgerListScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val transactions = viewModel.transactions.collectAsLazyPagingItems()
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    // onSaved 触发的 Snackbar 事件
+    // 记一笔之后的即时提示浮层（PRD 3.6.2）。
+    // 原来是一条纯文字 Snackbar，交接文档把它标记为体验降级--
+    // PRD 要的是金额从 0 滚动 + 进度条推进，见 SaveFeedbackOverlay
+    var saveFeedback by remember { mutableStateOf<SavedEvent?>(null) }
     LaunchedEffect(Unit) {
-        viewModel.savedEvents.collect { event ->
-            val msg = buildString {
-                append("已记录 ${event.savedAmountCents.yuanWithSymbol()}")
-                if (event.remainingCents != null) {
-                    if (event.isOverBudget) {
-                        append("，本期已超支 ${(-event.remainingCents).yuanWithSymbol()}")
-                    } else {
-                        append("，本期剩余 ${event.remainingCents.yuanWithSymbol()}")
-                    }
-                }
-                if (event.categoryRemainingCents != null) {
-                    if (event.categoryOverBudget) {
-                        append("，该分类已超支 ${(-event.categoryRemainingCents).yuanWithSymbol()}")
-                    } else {
-                        append("，该分类剩余 ${event.categoryRemainingCents.yuanWithSymbol()}")
-                    }
-                }
-            }
-            snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
-        }
+        viewModel.savedEvents.collect { event -> saveFeedback = event }
     }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
-        // 底栏是 MyApp 的 Box 叠层（毛玻璃），Snackbar 默认贴 Scaffold 底部会被盖住，
-        // 用 LocalBottomBarHeight 把它抬到底栏上方（与 FAB 同套路）
+        // 底栏是 MyApp 的 Box 叠层（毛玻璃），贴 Scaffold 底部的东西会被盖住，
+        // 用 LocalBottomBarHeight 把提示浮层抬到底栏上方（与 FAB 同套路）
         snackbarHost = {
-            SnackbarHost(
-                hostState = snackbarHostState,
+            SaveFeedbackOverlay(
+                event = saveFeedback,
+                budgetTotalCents = state.budget?.totalAmountCents,
+                onDismiss = { saveFeedback = null },
                 modifier = Modifier.padding(bottom = LocalBottomBarHeight.current),
             )
         },

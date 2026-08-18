@@ -58,6 +58,8 @@ import coil.compose.AsyncImage
 import com.myapp.core.designsystem.component.bringIntoViewOnFocus
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
+import com.myapp.core.designsystem.theme.sharedBoundsOrNothing
+import com.myapp.feature.note.ui.noteCardSharedKey
 import java.io.File
 
 /**
@@ -162,6 +164,15 @@ fun NoteEditScreen(
                 shape = MaterialTheme.shapes.small,
                 modifier = Modifier
                     .fillMaxWidth()
+                    // 正文框是列表卡片变形过来的落点（PRD 6.2）。
+                    // 新建笔记（isNew）没有来源卡片，标了也连不上，还白付一份 overlay 开销
+                    .then(
+                        if (draft.isNew) {
+                            Modifier
+                        } else {
+                            Modifier.sharedBoundsOrNothing(noteCardSharedKey(draft.id))
+                        },
+                    )
                     .bringIntoViewOnFocus(),
             )
 
