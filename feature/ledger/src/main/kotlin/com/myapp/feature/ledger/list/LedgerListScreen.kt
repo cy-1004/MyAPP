@@ -67,6 +67,7 @@ import com.myapp.feature.ledger.data.TransactionStatus
 import com.myapp.feature.ledger.data.parseAmountCents
 import com.myapp.feature.ledger.ui.SaveFeedbackOverlay
 import com.myapp.feature.ledger.ui.categoryColor
+import com.myapp.feature.ledger.ui.categoryContainerColor
 import com.myapp.feature.ledger.ui.categoryIcon
 import com.myapp.feature.ledger.ui.yuanWithSymbol
 
@@ -255,7 +256,7 @@ private fun TransactionRow(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(color.copy(alpha = 0.15f)),
+                .background(categoryContainerColor(transaction.categoryColor)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(

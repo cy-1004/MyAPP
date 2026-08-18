@@ -33,7 +33,15 @@ val TextTertiaryDark = Color(0xFF75726B)
 val Accent = Color(0xFFD97757)
 val AccentDark = Color(0xFFE08A6C)
 val AccentContainer = Color(0xFFF7E6DF)
-val AccentContainerDark = Color(0xFF4A2E24)
+
+/**
+ * 深色的 accent 容器色。
+ *
+ * 2026-08-18 从 #4A2E24 提亮到 #5C3A2D：原值叠在 `SurfaceDark`（#262624）上明度差太小，
+ * 真机深色模式下经期日历的「经期」图例色点几乎看不见，经期日的填充块同理。
+ * 这个色同时也是底栏选中态的药丸底，提亮后那里也更清楚一点。
+ */
+val AccentContainerDark = Color(0xFF5C3A2D)
 
 // ---------- 语义色 ----------
 val Success = Color(0xFF5C8A5C)
@@ -43,26 +51,11 @@ val WarningDark = Color(0xFFD9B84A)
 val Danger = Color(0xFFC0553C)    // 超支、逾期、删除
 val DangerDark = Color(0xFFD4674C)
 
-/**
- * 分类色板：低饱和莫兰迪色系，与 Accent 同色温。
- * 用于记账分类饼图、标签——**绝不用彩虹色**，那是廉价感的主要来源。
- */
-object CategoryPalette {
-    val colors = listOf(
-        Color(0xFFD97757), // 陶土
-        Color(0xFF8C9A7E), // 橄榄
-        Color(0xFF7E93A8), // 雾蓝
-        Color(0xFFC2A25E), // 芥末
-        Color(0xFFA88C9A), // 藕荷
-        Color(0xFF6F8F86), // 松绿
-        Color(0xFFB5806B), // 赭石
-        Color(0xFF8A8577), // 灰褐
-    )
-
-    /** 按稳定 key 取色，保证同一分类每次颜色一致。 */
-    fun colorFor(key: String): Color =
-        colors[(key.hashCode().let { if (it == Int.MIN_VALUE) 0 else kotlin.math.abs(it) }) % colors.size]
-}
+// 这里原本还有一个 `CategoryPalette` 对象（8 色莫兰迪色板 + colorFor(key)），
+// **零引用，2026-08-18 已删**。真正在用的是
+// `:feature:ledger` 的 `CategoryVisual.categoryColor(colorKey)`--
+// 那套按用户可选的 colorKey 取色（分类编辑页能改颜色），而不是按 key 哈希。
+// 两套并存时改错地方不会有任何报错，只是颜色没变，所以删掉死的那套。
 
 /** 预算进度条颜色：随消耗比例过渡（PRD 3.6.1）。 */
 fun budgetColor(ratio: Float, dark: Boolean): Color = when {

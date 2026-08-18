@@ -55,7 +55,7 @@ fun CategoryExpenseRow(item: CategoryExpenseItem, totalCents: Long) {
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(tint.copy(alpha = 0.16f)),
+                    .background(categoryContainerColor(item.color)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
