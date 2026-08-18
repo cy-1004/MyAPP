@@ -137,6 +137,14 @@ fun RssArticleListContent(
     val articles = viewModel.articles.collectAsLazyPagingItems()
     val listState = rememberLazyListState()
 
+    // 换筛选条件后回到顶部。改版前是「limit 收回首屏」顺带把列表挤短、位置被迫拉回，
+    // 换 Paging 之后新的分页流虽然从第一页开始，但 LazyListState 的索引不会跟着重置--
+    // 切到条目少得多的筛选（某个订阅源）就会落在莫名其妙的位置。
+    // 事件由 ViewModel 在真的改了筛选时发（不能用 LaunchedEffect(filter)，原因见那边注释）。
+    LaunchedEffect(Unit) {
+        viewModel.scrollToTop.collect { listState.scrollToItem(0) }
+    }
+
     Column(modifier = modifier.fillMaxSize()) {
         FilterRow(
             current = state.filter,

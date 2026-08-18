@@ -97,12 +97,25 @@ class RssArticleListViewModel @Inject constructor(
     }
 
     /**
+     * 换筛选条件后让列表回到顶部的一次性事件。
+     *
+     * 用 Channel 而不是在 UI 层 `LaunchedEffect(filter)`：那个 key 没变也会在
+     * **composable 重新进入组合**时重跑一次，于是从文章详情页返回也会被弹回顶部
+     * （改版时真踩到了）。事件只在 [setFilter] 真的改了值时发，语义精确。
+     * CONFLATED：连点几个筛选只需要滚一次。
+     */
+    private val _scrollToTop = Channel<Unit>(Channel.CONFLATED)
+    val scrollToTop: Flow<Unit> = _scrollToTop.receiveAsFlow()
+
+    /**
      * 换筛选条件。不用再手动把 limit 收回首屏了--
      * `flatMapLatest` 会为新条件建一条全新的分页流，天然从第一页开始。
+     * 但 `LazyListState` 的索引不会跟着重置，所以要显式发一次回顶事件。
      */
     fun setFilter(value: RssFilter) {
         if (filter.value == value) return
         filter.value = value
+        _scrollToTop.trySend(Unit)
     }
 
     fun setRead(id: Long, isRead: Boolean) {
