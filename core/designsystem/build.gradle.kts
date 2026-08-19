@@ -14,4 +14,7 @@ dependencies {
     // 毛玻璃：底部导航、悬浮工具栏、FAB 展开时的背景（PRD 6.1）
     api(libs.haze)
     api(libs.haze.materials)
+    // 庆祝粒子（PRD 6.1）：待办清空/预算不超支/纪念日当天，包成 ConfettiOverlay 给各 feature 用，
+    // 各 feature 不直接碰 konfetti 的 API，所以只需要 implementation
+    implementation(libs.konfetti.compose)
 }

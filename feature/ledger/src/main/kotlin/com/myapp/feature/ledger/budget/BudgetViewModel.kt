@@ -3,6 +3,7 @@ package com.myapp.feature.ledger.budget
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myapp.core.common.time.BudgetCycle
+import com.myapp.core.datastore.AppPreferences
 import com.myapp.feature.ledger.data.Budget
 import com.myapp.feature.ledger.data.BudgetHistoryInsights
 import com.myapp.feature.ledger.data.BudgetInsights
@@ -15,9 +16,12 @@ import com.myapp.feature.ledger.data.Pace
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -67,6 +71,7 @@ data class BudgetUiState(
 class BudgetViewModel @Inject constructor(
     private val budgetRepository: BudgetRepository,
     private val ledgerRepository: LedgerRepository,
+    private val preferences: AppPreferences,
 ) : ViewModel() {
 
     val state: StateFlow<BudgetUiState> = budgetRepository.observeCurrent()
@@ -131,6 +136,32 @@ class BudgetViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList(),
         )
+
+    /**
+     * 撒花触发器（PRD 6.1：预算周期内不超支）。
+     *
+     * 判定用 [history] 里**倒数第二期**——最后一期是还在进行中的本期，判定它没有意义
+     * （周期没结束，谈不上「达成」）；倒数第二期才是刚刚完整走完的那一期。
+     * 去重记号是该期的 [CyclePerformance.start]（存进 DataStore），保证一期只庆祝一次，
+     * 不会因为反复打开预算页而重复撒。
+     */
+    private val _confettiTrigger = MutableStateFlow<Long?>(null)
+    val confettiTrigger: StateFlow<Long?> = _confettiTrigger.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            history.collect { list ->
+                if (list.size < 2) return@collect
+                val completed = list[list.size - 2]
+                if (completed.budgetCents == null || completed.isOverBudget) return@collect
+                val key = completed.start.toString()
+                if (preferences.ledgerConfettiLastCycleStart.first() != key) {
+                    preferences.setLedgerConfettiLastCycleStart(key)
+                    _confettiTrigger.value = System.currentTimeMillis()
+                }
+            }
+        }
+    }
 
     fun setBudget(cycleStartDay: Int, totalAmountCents: Long) {
         viewModelScope.launch {

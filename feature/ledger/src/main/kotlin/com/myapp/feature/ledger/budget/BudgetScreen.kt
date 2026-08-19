@@ -41,6 +41,7 @@ import com.myapp.core.designsystem.component.AppCard
 import com.myapp.core.designsystem.component.EmptyState
 import com.myapp.core.designsystem.component.GlowProgressTrack
 import com.myapp.core.designsystem.component.LocalBottomBarHeight
+import com.myapp.core.designsystem.effect.ConfettiOverlay
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
 import com.myapp.feature.ledger.data.CyclePerformance
@@ -70,78 +71,83 @@ fun BudgetScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val history by viewModel.history.collectAsStateWithLifecycle()
+    val confettiTrigger by viewModel.confettiTrigger.collectAsStateWithLifecycle()
     var showDialog by remember { mutableStateOf(false) }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text("预算", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showDialog = true }) {
-                        Icon(Icons.Outlined.Edit, contentDescription = "编辑预算")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = {
+                TopAppBar(
+                    title = { Text("预算", style = MaterialTheme.typography.titleLarge) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { showDialog = true }) {
+                            Icon(Icons.Outlined.Edit, contentDescription = "编辑预算")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                    ),
+                )
+            },
+        ) { innerPadding ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(
+                    start = Spacing.xl,
+                    end = Spacing.xl,
+                    top = Spacing.sm,
+                    bottom = LocalBottomBarHeight.current + Spacing.xxl,
                 ),
-            )
-        },
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(
-                start = Spacing.xl,
-                end = Spacing.xl,
-                top = Spacing.sm,
-                bottom = LocalBottomBarHeight.current + Spacing.xxl,
-            ),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            if (state.loaded && state.budget == null) {
-                item(key = "empty") {
-                    EmptyState(
-                        text = "还没设预算。设一个之后这里会显示本期剩余、日均可用和花钱节奏。",
-                        actionLabel = "设置预算",
-                        onAction = { showDialog = true },
-                    )
-                }
-            }
-
-            if (state.budget != null) {
-                item(key = "overview") { OverviewCard(state) }
-                item(key = "pace") { PaceCard(state) }
-                if (history.isNotEmpty()) {
-                    item(key = "history") { HistoryCard(history) }
-                }
-                item(key = "categories-header") {
-                    Text(
-                        text = "本期支出去向",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.appColors.textSecondary,
-                        modifier = Modifier.padding(top = Spacing.sm),
-                    )
-                }
-                if (state.categories.isEmpty()) {
-                    item(key = "categories-empty") {
-                        EmptyState(text = "本期还没有支出记录")
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                if (state.loaded && state.budget == null) {
+                    item(key = "empty") {
+                        EmptyState(
+                            text = "还没设预算。设一个之后这里会显示本期剩余、日均可用和花钱节奏。",
+                            actionLabel = "设置预算",
+                            onAction = { showDialog = true },
+                        )
                     }
-                } else {
-                    items(items = state.categories, key = { it.categoryId }) { item ->
-                        CategoryExpenseRow(item = item, totalCents = state.spentCents)
+                }
+
+                if (state.budget != null) {
+                    item(key = "overview") { OverviewCard(state) }
+                    item(key = "pace") { PaceCard(state) }
+                    if (history.isNotEmpty()) {
+                        item(key = "history") { HistoryCard(history) }
+                    }
+                    item(key = "categories-header") {
+                        Text(
+                            text = "本期支出去向",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.appColors.textSecondary,
+                            modifier = Modifier.padding(top = Spacing.sm),
+                        )
+                    }
+                    if (state.categories.isEmpty()) {
+                        item(key = "categories-empty") {
+                            EmptyState(text = "本期还没有支出记录")
+                        }
+                    } else {
+                        items(items = state.categories, key = { it.categoryId }) { item ->
+                            CategoryExpenseRow(item = item, totalCents = state.spentCents)
+                        }
                     }
                 }
             }
         }
+        // 预算周期内不超支时撒花（PRD 6.1），去重逻辑在 ViewModel 里
+        ConfettiOverlay(trigger = confettiTrigger)
     }
 
     if (showDialog) {

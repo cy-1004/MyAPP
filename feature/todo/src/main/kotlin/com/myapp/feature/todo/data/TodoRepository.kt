@@ -118,6 +118,11 @@ class TodoRepository @Inject constructor(
 
     fun observeActiveCount(): Flow<Int> = dao.observeActiveCount()
 
+    /** 今天（含逾期）还剩几条未完成——撒花判定用（PRD 6.1：待办全部完成时）。 */
+    suspend fun countTodayUndone(): Int = withContext(io) {
+        dao.countUndoneBefore(before = AppTime.todayRange().last + 1)
+    }
+
     fun observeById(id: Long): Flow<Todo?> {
         val now = AppTime.now()
         return dao.observeById(id).map { entity -> entity?.toDomain(now) }

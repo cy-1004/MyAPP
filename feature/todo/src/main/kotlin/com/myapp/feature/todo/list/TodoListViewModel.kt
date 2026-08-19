@@ -40,6 +40,15 @@ class TodoListViewModel @Inject constructor(
     private val _undoEvents = Channel<UndoDeleteEvent>(Channel.BUFFERED)
     val undoEvents: Flow<UndoDeleteEvent> = _undoEvents.receiveAsFlow()
 
+    /**
+     * 撒花触发器（PRD 6.1：待办全部完成时）。值本身没有意义，每次变化就是「再撒一次」--
+     * 详见 [com.myapp.core.designsystem.effect.ConfettiOverlay] 的 trigger 参数说明。
+     * 只在「勾完这一下让今天的未完成数变成 0」时触发，不在打开页面时发现已经是 0 就触发--
+     * 后者应该是「路过一个已经空的列表」，不是「刚刚清空」，撒花庆祝的是后者。
+     */
+    private val _confettiTrigger = MutableStateFlow<Long?>(null)
+    val confettiTrigger: StateFlow<Long?> = _confettiTrigger.asStateFlow()
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val items: StateFlow<Result<List<Todo>>> = _filter
         // flatMapLatest：切换筛选时立刻取消上一个数据库订阅，不会两个视图的结果打架
@@ -56,7 +65,13 @@ class TodoListViewModel @Inject constructor(
     }
 
     fun toggle(todo: Todo) {
-        viewModelScope.launch { repository.setDone(todo.id, !todo.done) }
+        viewModelScope.launch {
+            val turningDone = !todo.done
+            repository.setDone(todo.id, turningDone)
+            if (turningDone && repository.countTodayUndone() == 0) {
+                _confettiTrigger.value = System.currentTimeMillis()
+            }
+        }
     }
 
     fun delete(todo: Todo) {

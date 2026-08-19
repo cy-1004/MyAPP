@@ -236,6 +236,25 @@ class AppPreferences @Inject constructor(
         }
     }
 
+    // ---- 撒花去重（PRD 6.1）----
+    /**
+     * 「纪念日当天」撒花的去重记号：存最后一次撒花的日期（ISO，如 "2026-08-19"）。
+     * 同一天打开纪念日列表多次不会重复撒--只在这个值真的落后于今天时才触发一次并更新。
+     */
+    val anniversaryConfettiLastDate: Flow<String> = read(Keys.ANNIVERSARY_CONFETTI_LAST_DATE, "")
+
+    suspend fun setAnniversaryConfettiLastDate(isoDate: String) =
+        write(Keys.ANNIVERSARY_CONFETTI_LAST_DATE, isoDate)
+
+    /**
+     * 「预算周期内不超支」撒花的去重记号：存最后一次撒花对应的周期起始日（ISO）。
+     * 同一个周期只在结束未超支时庆祝一次，不会因为反复打开账本页而重复撒。
+     */
+    val ledgerConfettiLastCycleStart: Flow<String> = read(Keys.LEDGER_CONFETTI_LAST_CYCLE_START, "")
+
+    suspend fun setLedgerConfettiLastCycleStart(isoDate: String) =
+        write(Keys.LEDGER_CONFETTI_LAST_CYCLE_START, isoDate)
+
     private fun read(key: Preferences.Key<String>, default: String): Flow<String> =
         store.data.map { it[key] ?: default }
 
@@ -261,5 +280,7 @@ class AppPreferences @Inject constructor(
         val PERIOD_AI_RESULT = stringPreferencesKey("period.ai.result")
         val PERIOD_AI_FINGERPRINT = stringPreferencesKey("period.ai.fingerprint")
         val PERIOD_AI_UPDATED_AT = longPreferencesKey("period.ai.updatedAt")
+        val ANNIVERSARY_CONFETTI_LAST_DATE = stringPreferencesKey("anniversary.confetti.lastDate")
+        val LEDGER_CONFETTI_LAST_CYCLE_START = stringPreferencesKey("ledger.confetti.lastCycleStart")
     }
 }

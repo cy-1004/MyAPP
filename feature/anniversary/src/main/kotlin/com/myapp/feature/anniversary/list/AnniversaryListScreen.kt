@@ -44,6 +44,7 @@ import com.myapp.core.common.result.Result
 import com.myapp.core.designsystem.component.CardSkeleton
 import com.myapp.core.designsystem.component.EmptyState
 import com.myapp.core.designsystem.component.LocalBottomBarHeight
+import com.myapp.core.designsystem.effect.ConfettiOverlay
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
 import com.myapp.core.ui.navigation.Route
@@ -64,6 +65,7 @@ fun AnniversaryListScreen(
     viewModel: AnniversaryListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.items.collectAsStateWithLifecycle()
+    val confettiTrigger by viewModel.confettiTrigger.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -79,73 +81,77 @@ fun AnniversaryListScreen(
         }
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text("纪念日", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { onNavigate(Route.AnniversaryDetail()) },
-                modifier = Modifier.padding(bottom = LocalBottomBarHeight.current),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "新建纪念日")
-            }
-        },
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            when (val s = state) {
-                is Result.Loading -> Column(
-                    modifier = Modifier.padding(horizontal = Spacing.xl, vertical = Spacing.md),
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                TopAppBar(
+                    title = { Text("纪念日", style = MaterialTheme.typography.titleLarge) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                    ),
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = { onNavigate(Route.AnniversaryDetail()) },
+                    modifier = Modifier.padding(bottom = LocalBottomBarHeight.current),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                 ) {
-                    CardSkeleton()
+                    Icon(Icons.Default.Add, contentDescription = "新建纪念日")
                 }
-
-                is Result.Error -> EmptyState(text = "列表加载失败了")
-
-                is Result.Success -> if (s.data.isEmpty()) {
-                    EmptyState(
-                        text = "还没有记下任何日子",
-                        actionLabel = "加一个",
-                        onAction = { onNavigate(Route.AnniversaryDetail()) },
-                    )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = Spacing.xl,
-                            end = Spacing.xl,
-                            top = Spacing.sm,
-                            bottom = 96.dp, // 给 FAB 让位
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+            },
+        ) { innerPadding ->
+            Column(modifier = Modifier.padding(innerPadding)) {
+                when (val s = state) {
+                    is Result.Loading -> Column(
+                        modifier = Modifier.padding(horizontal = Spacing.xl, vertical = Spacing.md),
                     ) {
-                        items(items = s.data, key = { it.id }) { item ->
-                            SwipeableRow(
-                                item = item,
-                                onDelete = { viewModel.delete(item) },
-                                onClick = { onNavigate(Route.AnniversaryDetail(item.id)) },
-                                modifier = Modifier.animateItem(),
-                            )
+                        CardSkeleton()
+                    }
+
+                    is Result.Error -> EmptyState(text = "列表加载失败了")
+
+                    is Result.Success -> if (s.data.isEmpty()) {
+                        EmptyState(
+                            text = "还没有记下任何日子",
+                            actionLabel = "加一个",
+                            onAction = { onNavigate(Route.AnniversaryDetail()) },
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = Spacing.xl,
+                                end = Spacing.xl,
+                                top = Spacing.sm,
+                                bottom = 96.dp, // 给 FAB 让位
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        ) {
+                            items(items = s.data, key = { it.id }) { item ->
+                                SwipeableRow(
+                                    item = item,
+                                    onDelete = { viewModel.delete(item) },
+                                    onClick = { onNavigate(Route.AnniversaryDetail(item.id)) },
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+        // 纪念日当天撒花（PRD 6.1），去重逻辑在 ViewModel 里（DataStore 记最后撒花日期）
+        ConfettiOverlay(trigger = confettiTrigger)
     }
 }
 

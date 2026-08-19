@@ -52,6 +52,7 @@ import com.myapp.core.common.result.Result
 import com.myapp.core.designsystem.component.CardSkeleton
 import com.myapp.core.designsystem.component.EmptyState
 import com.myapp.core.designsystem.component.LocalBottomBarHeight
+import com.myapp.core.designsystem.effect.ConfettiOverlay
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
 import com.myapp.core.ui.navigation.Route
@@ -77,6 +78,7 @@ fun TodoListScreen(
 ) {
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val state by viewModel.items.collectAsStateWithLifecycle()
+    val confettiTrigger by viewModel.confettiTrigger.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // 删除后的撤销提示。事件流是 Channel，不会在返回本页时重放
@@ -93,81 +95,85 @@ fun TodoListScreen(
         }
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text("待办", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { onNavigate(Route.TodoDetail()) },
-                modifier = Modifier.padding(bottom = LocalBottomBarHeight.current),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "新建待办")
-            }
-        },
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            FilterRow(
-                selected = filter,
-                onSelect = viewModel::selectFilter,
-            )
-
-            when (val s = state) {
-                is Result.Loading -> Column(
-                    modifier = Modifier.padding(horizontal = Spacing.xl, vertical = Spacing.md),
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                TopAppBar(
+                    title = { Text("待办", style = MaterialTheme.typography.titleLarge) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                    ),
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = { onNavigate(Route.TodoDetail()) },
+                    modifier = Modifier.padding(bottom = LocalBottomBarHeight.current),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                 ) {
-                    CardSkeleton()
+                    Icon(Icons.Default.Add, contentDescription = "新建待办")
                 }
+            },
+        ) { innerPadding ->
+            Column(modifier = Modifier.padding(innerPadding)) {
+                FilterRow(
+                    selected = filter,
+                    onSelect = viewModel::selectFilter,
+                )
 
-                is Result.Error -> EmptyState(text = "列表加载失败了")
-
-                is Result.Success -> if (s.data.isEmpty()) {
-                    // 「已完成」是回顾视图，空态里不该出现「加一条」
-                    val offerCreate = filter != TodoFilter.DONE
-                    EmptyState(
-                        text = emptyTextFor(filter),
-                        actionLabel = if (offerCreate) "加一条" else null,
-                        onAction = if (offerCreate) ({ onNavigate(Route.TodoDetail()) }) else null,
-                    )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = Spacing.xl,
-                            end = Spacing.xl,
-                            top = Spacing.sm,
-                            bottom = 96.dp, // 给 FAB 让位
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                when (val s = state) {
+                    is Result.Loading -> Column(
+                        modifier = Modifier.padding(horizontal = Spacing.xl, vertical = Spacing.md),
                     ) {
-                        items(items = s.data, key = { it.id }) { todo ->
-                            SwipeableTodoRow(
-                                todo = todo,
-                                onToggle = { viewModel.toggle(todo) },
-                                onDelete = { viewModel.delete(todo) },
-                                onClick = { onNavigate(Route.TodoDetail(todo.id)) },
-                                modifier = Modifier.animateItem(),
-                            )
+                        CardSkeleton()
+                    }
+
+                    is Result.Error -> EmptyState(text = "列表加载失败了")
+
+                    is Result.Success -> if (s.data.isEmpty()) {
+                        // 「已完成」是回顾视图，空态里不该出现「加一条」
+                        val offerCreate = filter != TodoFilter.DONE
+                        EmptyState(
+                            text = emptyTextFor(filter),
+                            actionLabel = if (offerCreate) "加一条" else null,
+                            onAction = if (offerCreate) ({ onNavigate(Route.TodoDetail()) }) else null,
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = Spacing.xl,
+                                end = Spacing.xl,
+                                top = Spacing.sm,
+                                bottom = 96.dp, // 给 FAB 让位
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        ) {
+                            items(items = s.data, key = { it.id }) { todo ->
+                                SwipeableTodoRow(
+                                    todo = todo,
+                                    onToggle = { viewModel.toggle(todo) },
+                                    onDelete = { viewModel.delete(todo) },
+                                    onClick = { onNavigate(Route.TodoDetail(todo.id)) },
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+        // 待办全部完成时撒花（PRD 6.1），铺在 Scaffold 之上；触发时机见 ViewModel.toggle()
+        ConfettiOverlay(trigger = confettiTrigger)
     }
 }
 
