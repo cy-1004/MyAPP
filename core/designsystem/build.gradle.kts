@@ -17,4 +17,7 @@ dependencies {
     // 庆祝粒子（PRD 6.1）：待办清空/预算不超支/纪念日当天，包成 ConfettiOverlay 给各 feature 用，
     // 各 feature 不直接碰 konfetti 的 API，所以只需要 implementation
     implementation(libs.konfetti.compose)
+    // 空态矢量动画（PRD 6.1）：接进 EmptyState 一处，全 App 的空态列表页跟着一起有，
+    // 各 feature 不直接碰 lottie 的 API
+    implementation(libs.lottie.compose)
 }
