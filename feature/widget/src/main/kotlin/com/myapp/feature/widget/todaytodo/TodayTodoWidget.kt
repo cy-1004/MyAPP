@@ -2,14 +2,17 @@ package com.myapp.feature.widget.todaytodo
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.LocalContext
+import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
@@ -35,14 +38,23 @@ import com.myapp.feature.widget.ui.widgetPalette
 import dagger.hilt.android.EntryPointAccessors
 
 /**
- * W3 今日待办（2×2，PRD 3.10）。
+ * W3 今日待办（默认 2×2，可拖高，PRD 7「小组件多尺寸」）。
  *
- * 展示今天（含逾期）未完成的待办，最多 4 条；圆圈勾选走
- * [ToggleTodoCallback]——重复任务的行为与 App 内一致。全部完成时显示完成态，
- * 一条都没有且今天也没完成过时显示「今天没有安排」，两者有区分
- * （完成态是肯定语气，空态是引导）。
+ * 展示今天（含逾期）未完成的待办，圆圈勾选走 [ToggleTodoCallback]--
+ * 重复任务的行为与 App 内一致。全部完成时显示完成态，一条都没有且今天也没完成过时
+ * 显示「今天没有安排」，两者有区分（完成态是肯定语气，空态是引导）。
+ *
+ * **两档尺寸**（[SizeMode.Responsive]）：默认 2×2 最多显示 2 条--
+ * 2×2 在多数launcher上实测就是 110dp 上下，header 占一行后留给待办的空间
+ * 装不下 4 条还不挤；拖高之后（比如拉到 4 格高）改成最多 6 条，
+ * 这才是「拖大看到更多」的意思。原来两个尺寸都固定塞 4 条，
+ * 缩到最小时可能被裁切、拖大了又看不出多显示什么，等于没做「多尺寸」。
  */
 class TodayTodoWidget : GlanceAppWidget() {
+
+    override val sizeMode = SizeMode.Responsive(
+        setOf(DpSize(110.dp, 110.dp), DpSize(110.dp, 200.dp)),
+    )
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val entry = EntryPointAccessors.fromApplication(
@@ -51,10 +63,14 @@ class TodayTodoWidget : GlanceAppWidget() {
         )
         val dao = entry.todoDao()
         val today = AppTime.todayRange()
-        val todos = dao.getUndoneBefore(now = AppTime.now(), before = today.last + 1).take(4)
+        // 两档里较大的上限（6）：provideGlance 只跑一次，LocalSize 只在 Composable 里
+        // 才能读到，实际显示几条留给下面按当前尺寸截取
+        val todos = dao.getUndoneBefore(now = AppTime.now(), before = today.last + 1).take(6)
+        // 真实总数单独查：不能拿 todos.size 顶替，那样超过 6 条时 header 上的数字会偏小
+        val undoneTotal = dao.countUndoneBefore(before = today.last + 1)
         val doneToday = dao.countDoneInRange(start = today.first, endExclusive = today.last + 1)
         provideContent {
-            TodayTodoContent(todos, doneToday)
+            TodayTodoContent(todos, undoneTotal, doneToday)
         }
     }
 }
@@ -65,20 +81,30 @@ class TodayTodoWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 @Composable
-private fun TodayTodoContent(todos: List<TodoEntity>, doneToday: Int) {
+private fun TodayTodoContent(todos: List<TodoEntity>, undoneTotal: Int, doneToday: Int) {
     val palette = LocalContext.current.widgetPalette()
+    // 拖高之后显示更多条，见类注释。阈值取两档尺寸（110dp/200dp）的中点
+    val visibleLimit = if (LocalSize.current.height >= 155.dp) 6 else 2
+    val visible = todos.take(visibleLimit)
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(palette.surface)
             .padding(12.dp),
     ) {
-        Header(palette, todos.size)
-        if (todos.isEmpty()) {
+        Header(palette, undoneTotal)
+        if (visible.isEmpty()) {
             // defaultWeight 是 ColumnScope 成员，只能在 Column 的 lambda 里调用
             EmptyState(palette, doneToday, GlanceModifier.defaultWeight())
         } else {
-            todos.forEach { TodoRow(it, palette) }
+            visible.forEach { TodoRow(it, palette) }
+            if (undoneTotal > visible.size) {
+                Text(
+                    text = "还有 ${undoneTotal - visible.size} 项",
+                    style = WidgetTextStyles.label.copy(color = ColorProvider(palette.textTertiary)),
+                    modifier = GlanceModifier.padding(top = 4.dp),
+                )
+            }
         }
     }
 }

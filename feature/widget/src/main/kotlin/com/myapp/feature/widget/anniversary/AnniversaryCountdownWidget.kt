@@ -2,13 +2,16 @@ package com.myapp.feature.widget.anniversary
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.LocalContext
+import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
@@ -37,7 +40,7 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.flow.first
 
 /**
- * W4 纪念日倒数（2×2，PRD 3.10）。
+ * W4 纪念日倒数（默认 2×2，可拖大，PRD 7「小组件多尺寸」）。
  *
  * 盯哪个纪念日，优先级链与 App 内一致（PRD 3.10 定稿）：
  *   1. 配置页选定的一条（WidgetPrefsStore）；
@@ -48,8 +51,16 @@ import kotlinx.coroutines.flow.first
  *
  * 「下一次是哪天」的日期数学在 :core:common 的 [AnniversaryCalculator]，
  * 这里只做领域映射（widget 不能依赖 :feature:anniversary）。
+ *
+ * **两档尺寸**（[SizeMode.Responsive]）：默认 2×2 只显示上面选出的这一条，不变；
+ * 拖大之后额外显示「接下来还有」最多 2 条即将到来的其它纪念日--这份数据本来就在
+ * `all` 里已经查出来了，只是默认尺寸没地方放，不用为了多尺寸再多查一次库。
  */
 class AnniversaryCountdownWidget : GlanceAppWidget() {
+
+    override val sizeMode = SizeMode.Responsive(
+        setOf(DpSize(110.dp, 110.dp), DpSize(110.dp, 200.dp)),
+    )
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val entry = EntryPointAccessors.fromApplication(
@@ -66,8 +77,13 @@ class AnniversaryCountdownWidget : GlanceAppWidget() {
             ?: all.firstOrNull { it.pinned }
             ?: all.filter { it.daysUntil != null }.minByOrNull { it.daysUntil!! }
             ?: all.minByOrNull { it.createdAt }
+        // 拖大之后才会显示，见类注释；排除掉已经是主角的那条，按最近的先来
+        val upcoming = all
+            .filter { it.id != item?.id && it.daysUntil != null }
+            .sortedBy { it.daysUntil }
+            .take(2)
         provideContent {
-            CountdownContent(item)
+            CountdownContent(item, upcoming)
         }
     }
 }
@@ -78,9 +94,10 @@ class AnniversaryCountdownWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 @Composable
-private fun CountdownContent(item: CountdownItem?) {
+private fun CountdownContent(item: CountdownItem?, upcoming: List<CountdownItem>) {
     val palette = LocalContext.current.widgetPalette()
     val context = LocalContext.current
+    val expanded = LocalSize.current.height >= 155.dp
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -92,6 +109,43 @@ private fun CountdownContent(item: CountdownItem?) {
             GuideCard(palette)
         } else {
             CountdownBody(item, palette)
+            if (expanded && upcoming.isNotEmpty()) {
+                UpcomingList(upcoming, palette)
+            }
+        }
+    }
+}
+
+/**
+ * 拖大之后显示的「接下来还有」小列表，最多 2 条（PRD 7「小组件多尺寸」）。
+ * 只显示天数 + 标题，不重复主体已经有的日期/重复类型这类细节--这里是次要信息，
+ * 只需要让人知道「还有别的日子快到了」，不需要跟主角一样详细。
+ */
+@Composable
+private fun UpcomingList(upcoming: List<CountdownItem>, palette: WidgetPalette) {
+    Column(modifier = GlanceModifier.fillMaxWidth().padding(top = 8.dp)) {
+        Text(
+            text = "接下来还有",
+            style = WidgetTextStyles.label.copy(color = ColorProvider(palette.textTertiary)),
+        )
+        upcoming.forEach { next ->
+            Row(
+                modifier = GlanceModifier.fillMaxWidth().padding(top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = next.title,
+                    style = WidgetTextStyles.caption.copy(color = ColorProvider(palette.textPrimary)),
+                    maxLines = 1,
+                    modifier = GlanceModifier.defaultWeight(),
+                )
+                // upcoming 在 provideGlance 里已经过滤掉 daysUntil == null 的项，
+                // 这里的 !! 是安全的；类型仍是 Long? 因为 CountdownItem 是通用领域模型
+                Text(
+                    text = "${next.daysUntil!!} 天后",
+                    style = WidgetTextStyles.label.copy(color = ColorProvider(palette.textTertiary)),
+                )
+            }
         }
     }
 }
