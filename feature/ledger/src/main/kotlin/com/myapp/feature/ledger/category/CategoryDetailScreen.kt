@@ -21,6 +21,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +51,7 @@ import com.myapp.core.designsystem.component.bringIntoViewOnFocus
 import com.myapp.core.designsystem.theme.Spacing
 import com.myapp.core.designsystem.theme.appColors
 import com.myapp.feature.ledger.data.CategoryDraft
+import com.myapp.feature.ledger.data.ManagedCategory
 import com.myapp.feature.ledger.ui.categoryColor
 import com.myapp.feature.ledger.ui.categoryIcon
 import com.myapp.feature.ledger.ui.selectableCategoryColors
@@ -71,6 +74,7 @@ fun CategoryDetailScreen(
 ) {
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     val loaded by viewModel.loaded.collectAsStateWithLifecycle()
+    val parentOptions by viewModel.parentOptions.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -102,7 +106,8 @@ fun CategoryDetailScreen(
                     }
                 },
                 actions = {
-                    if (!draft.isNew && !draft.isProtected) {
+                    // 有子分类的父分类不显示删除：先删/挪走子分类才能删它，见 CategoryRepository.delete
+                    if (!draft.isNew && !draft.isProtected && !draft.hasChildren) {
                         IconButton(onClick = viewModel::delete) {
                             Icon(
                                 Icons.Outlined.Delete,
@@ -130,7 +135,7 @@ fun CategoryDetailScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
             if (loaded) {
-                CategoryDetailForm(draft = draft, viewModel = viewModel)
+                CategoryDetailForm(draft = draft, parentOptions = parentOptions, viewModel = viewModel)
             }
         }
     }
@@ -142,6 +147,7 @@ fun CategoryDetailScreen(
 @Composable
 private fun CategoryDetailForm(
     draft: CategoryDraft,
+    parentOptions: List<ManagedCategory>,
     viewModel: CategoryDetailViewModel,
 ) {
     PreviewCard(draft = draft)
@@ -179,6 +185,24 @@ private fun CategoryDetailForm(
             .fillMaxWidth()
             .bringIntoViewOnFocus(),
     )
+
+    // 保留项必须稳定在顶级；已经有子分类的不能再挂到别人底下（会出现三级）--
+    // 两种情况都不给选择器，给了也会被 Repository.resolveParentId 拦回顶级，
+    // 与其让用户选了却被悄悄改回去，不如一开始就不给选
+    if (!draft.isProtected && !draft.hasChildren) {
+        SectionLabel("所属分类")
+        ParentCategoryPicker(
+            options = parentOptions,
+            selectedId = draft.parentId,
+            onSelect = viewModel::updateParent,
+        )
+    } else if (draft.hasChildren) {
+        Text(
+            text = "这个分类下面已经有子分类了，不能再挂到别的分类底下",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.appColors.textSecondary,
+        )
+    }
 
     SectionLabel("图标")
     FlowRow(
@@ -306,6 +330,40 @@ private fun ColorOption(
             )
             .clickable(onClick = onClick),
     )
+}
+
+/**
+ * 「所属分类」选择器：一个「无（一级分类）」chip + 每个可选顶级分类一个 chip。
+ * 复用记账编辑页方向选择器同一套 FilterChip + 横向滚动样式（[selectableCategoryIcons] 那套
+ * 图标/颜色选择器视觉更重，这里只是个归属关系，用轻量 chip 就够）。
+ */
+@Composable
+private fun ParentCategoryPicker(
+    options: List<ManagedCategory>,
+    selectedId: Long?,
+    onSelect: (Long?) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        FilterChip(
+            selected = selectedId == null,
+            onClick = { onSelect(null) },
+            label = { Text("无（一级分类）", style = MaterialTheme.typography.labelLarge) },
+            shape = MaterialTheme.shapes.small,
+        )
+        options.forEach { option ->
+            FilterChip(
+                selected = option.id == selectedId,
+                onClick = { onSelect(option.id) },
+                label = { Text(option.name, style = MaterialTheme.typography.labelLarge) },
+                shape = MaterialTheme.shapes.small,
+            )
+        }
+    }
 }
 
 @Composable

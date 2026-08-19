@@ -17,6 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -301,6 +303,17 @@ private fun <T> ChipRow(
     }
 }
 
+/**
+ * 分类选择器（PRD 3.6.1「支持自建子分类……一级够用时不强制展开」）。
+ *
+ * 顶级分类一律铺开显示，跟改版前的体验一致--没建子分类的人完全无感知。
+ * 有子分类的顶级分类多一个展开箭头：**点分类本身直接选中它**（记到父类目下，
+ * 3 步记账的流程不受影响），**点箭头才展开子分类行**，两个是独立的点击目标。
+ * 同一时间只展开一组，展开另一组会收起上一组，避免子分类行无限往下堆。
+ *
+ * 编辑一笔已经选了子分类的账目时，自动展开它所在的组--不然用户会看到
+ * 顶级分类里没有一个是选中状态，以为「记录不见了」。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CategoryPicker(
@@ -308,32 +321,97 @@ private fun CategoryPicker(
     selectedId: Long,
     onSelect: (Long) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        categories.forEach { category ->
-            FilterChip(
-                selected = category.id == selectedId,
-                onClick = { onSelect(category.id) },
-                label = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-                    ) {
-                        CategoryDot(category.color)
-                        Text(category.name, style = MaterialTheme.typography.labelLarge)
+    val topLevel = remember(categories) { categories.filter { it.parentId == null }.sortedBy { it.sortOrder } }
+    val childrenByParent = remember(categories) {
+        categories.filter { it.parentId != null }
+            .groupBy { it.parentId }
+            .mapValues { (_, kids) -> kids.sortedBy { it.sortOrder } }
+    }
+
+    var expandedParentId by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(selectedId, categories) {
+        val parentOfSelected = categories.firstOrNull { it.id == selectedId }?.parentId
+        if (parentOfSelected != null) expandedParentId = parentOfSelected
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            topLevel.forEach { category ->
+                val kids = childrenByParent[category.id].orEmpty()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CategoryChip(
+                        category = category,
+                        selected = category.id == selectedId,
+                        onClick = { onSelect(category.id) },
+                    )
+                    if (kids.isNotEmpty()) {
+                        val expanded = expandedParentId == category.id
+                        IconButton(
+                            onClick = { expandedParentId = if (expanded) null else category.id },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(
+                                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (expanded) {
+                                    "收起「${category.name}」的子分类"
+                                } else {
+                                    "展开「${category.name}」的子分类"
+                                },
+                                tint = MaterialTheme.appColors.textTertiary,
+                            )
+                        }
                     }
-                },
-                shape = MaterialTheme.shapes.small,
-                colors = FilterChipDefaults.filterChipColors(
-                    labelColor = MaterialTheme.colorScheme.onSurface,
-                ),
-            )
+                }
+            }
+        }
+
+        val expandedChildren = expandedParentId?.let(childrenByParent::get).orEmpty()
+        if (expandedChildren.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(start = Spacing.lg),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                expandedChildren.forEach { child ->
+                    CategoryChip(
+                        category = child,
+                        selected = child.id == selectedId,
+                        onClick = { onSelect(child.id) },
+                    )
+                }
+            }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryChip(category: Category, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            ) {
+                CategoryDot(category.color)
+                Text(category.name, style = MaterialTheme.typography.labelLarge)
+            }
+        },
+        shape = MaterialTheme.shapes.small,
+        colors = FilterChipDefaults.filterChipColors(
+            labelColor = MaterialTheme.colorScheme.onSurface,
+        ),
+    )
 }
 
 @Composable

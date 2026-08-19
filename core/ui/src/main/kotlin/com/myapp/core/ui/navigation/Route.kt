@@ -90,9 +90,13 @@ sealed interface Route {
     @Serializable
     data object CategoryList : Route
 
-    /** 分类编辑页。id 为 0 表示新建，与待办/规则同一套约定。 */
+    /**
+     * 分类编辑页。id 为 0 表示新建，与待办/规则同一套约定。
+     * [presetParentId] 非 0 时是「添加子分类」入口预填的父分类 id（PRD 3.6.1，最多两级），
+     * 只在 id == 0（新建）时生效；同 [RuleDetail.presetUnrecognizedId] 的预填约定。
+     */
     @Serializable
-    data class CategoryDetail(val id: Long = 0L) : Route
+    data class CategoryDetail(val id: Long = 0L, val presetParentId: Long = 0L) : Route
 
     @Serializable
     data object Budget : Route

@@ -67,7 +67,12 @@ data class CategoryExpenseItem(
     val capCents: Long? = null,
 )
 
-/** 分类领域模型。 */
+/**
+ * 分类领域模型。
+ *
+ * [parentId] 非空表示这是二级分类（PRD 3.6.1，最多两级）。
+ * 记账编辑页的分类选择器（`CategoryPicker`）按它把子分类分组挂在各自的父分类下。
+ */
 data class Category(
     val id: Long,
     val name: String,
@@ -75,6 +80,7 @@ data class Category(
     val color: String,
     val sortOrder: Int,
     val isProtected: Boolean,
+    val parentId: Long? = null,
 )
 
 /** 编辑页的可变草稿。amountText 是字符串，校验在 [canSave] 里。 */
@@ -446,6 +452,7 @@ class LedgerRepository @Inject constructor(
         color = color,
         sortOrder = sortOrder,
         isProtected = isProtected,
+        parentId = parentId,
     )
 }
 

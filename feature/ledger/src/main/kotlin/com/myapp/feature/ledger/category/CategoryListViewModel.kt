@@ -15,13 +15,23 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** 列表行：分类本身 + 该分类下的账目笔数（提示停用/删除会影响多少历史账目）。 */
+/**
+ * 列表行：分类本身 + 该分类下的账目笔数（提示停用/删除会影响多少历史账目）。
+ *
+ * [isFirst]/[isLast] 是**在同一父分类下的兄弟范围内**算的（PRD 3.6.1「最多两级」）--
+ * 顶级分类只跟其他顶级分类比较，子分类只跟同一父分类下的其他子分类比较，
+ * 与 [com.myapp.feature.ledger.data.CategoryRepository.move] 的移动范围保持一致，
+ * 否则按钮能点但一移动就发现挪到了不相关的分类中间。
+ */
 data class CategoryRow(
     val category: ManagedCategory,
     val transactionCount: Int,
-    /** 是否已在列表首位/末位（决定上移/下移按钮是否可点）。 */
     val isFirst: Boolean,
     val isLast: Boolean,
+    /** 顶级分类下面有没有子分类：决定要不要显示「添加子分类」入口、能不能删除。 */
+    val hasChildren: Boolean,
+    /** 是不是子分类：决定列表里要不要缩进显示。 */
+    val isChild: Boolean,
 )
 
 data class CategoryListState(
@@ -42,17 +52,7 @@ class CategoryListViewModel @Inject constructor(
 
     val state: StateFlow<CategoryListState> =
         combine(repository.observeAll(), repository.observeUsage()) { categories, usage ->
-            CategoryListState(
-                rows = categories.mapIndexed { index, category ->
-                    CategoryRow(
-                        category = category,
-                        transactionCount = usage[category.id] ?: 0,
-                        isFirst = index == 0,
-                        isLast = index == categories.lastIndex,
-                    )
-                },
-                loaded = true,
-            )
+            CategoryListState(rows = buildCategoryRows(categories, usage), loaded = true)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -67,7 +67,8 @@ class CategoryListViewModel @Inject constructor(
     }
 
     fun delete(row: CategoryRow) {
-        if (row.category.isProtected) return
+        // hasChildren 拦在这里只是双保险：UI 侧已经不给有子分类的行挂侧滑删除了
+        if (row.category.isProtected || row.hasChildren) return
         viewModelScope.launch {
             repository.delete(row.category.id)
             _undoEvents.send(CategoryUndoDeleteEvent(row.category.id, row.category.name))
@@ -82,4 +83,42 @@ class CategoryListViewModel @Inject constructor(
     fun move(id: Long, delta: Int) {
         viewModelScope.launch { repository.move(id, delta) }
     }
+}
+
+/**
+ * 把扁平分类列表按父子关系组织成渲染顺序（PRD 3.6.1「最多两级」）：
+ * 每个顶级分类后面紧跟着它的子分类（各自按 sortOrder 排序），子分类标 [CategoryRow.isChild]
+ * 供列表缩进显示。[CategoryRow.isFirst]/[isLast] 在各自的兄弟范围内计算--
+ * 顶级分类之间比，子分类只跟同一父分类下的兄弟比，与
+ * [com.myapp.feature.ledger.data.CategoryRepository.move] 的移动范围一致。
+ *
+ * 纯函数，[CategoryRowsTest] 钉死。
+ */
+fun buildCategoryRows(categories: List<ManagedCategory>, usage: Map<Long, Int>): List<CategoryRow> {
+    val childrenByParent = categories.filter { it.parentId != null }.groupBy { it.parentId }
+    val topLevel = categories.filter { it.parentId == null }.sortedBy { it.sortOrder }
+
+    val rows = mutableListOf<CategoryRow>()
+    topLevel.forEachIndexed { index, parent ->
+        val kids = childrenByParent[parent.id].orEmpty().sortedBy { it.sortOrder }
+        rows += CategoryRow(
+            category = parent,
+            transactionCount = usage[parent.id] ?: 0,
+            isFirst = index == 0,
+            isLast = index == topLevel.lastIndex,
+            hasChildren = kids.isNotEmpty(),
+            isChild = false,
+        )
+        kids.forEachIndexed { childIndex, child ->
+            rows += CategoryRow(
+                category = child,
+                transactionCount = usage[child.id] ?: 0,
+                isFirst = childIndex == 0,
+                isLast = childIndex == kids.lastIndex,
+                hasChildren = false,
+                isChild = true,
+            )
+        }
+    }
+    return rows
 }

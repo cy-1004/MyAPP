@@ -14,6 +14,9 @@ import kotlinx.coroutines.withContext
 
 /**
  * 分类管理页的领域模型（比 [Category] 多带 isActive，管理页要展示已停用项）。
+ *
+ * [parentId] 非空表示这是二级分类（PRD 3.6.1「支持自建子分类……最多两级」）。
+ * 只有顶级分类（parentId == null）能被选作父分类，见 [resolveParentId]。
  */
 data class ManagedCategory(
     val id: Long,
@@ -23,6 +26,7 @@ data class ManagedCategory(
     val sortOrder: Int,
     val isActive: Boolean,
     val isProtected: Boolean,
+    val parentId: Long? = null,
 )
 
 /**
@@ -40,6 +44,15 @@ data class CategoryDraft(
     val isActive: Boolean = true,
     val isProtected: Boolean = false,
     val capYuanText: String = "",
+    /** 上级分类 id；null = 顶级分类。新建子分类时由「添加子分类」入口预填。 */
+    val parentId: Long? = null,
+    /**
+     * 这个分类底下有没有子分类。**只在加载已有分类时由 Repository 算好填入**，
+     * 新建草稿恒为 false（新分类不可能已经有子分类）。
+     * 编辑页据此禁用「所属分类」选择器--已经是父分类的不能再挂到别人底下，
+     * 那样会出现三级。
+     */
+    val hasChildren: Boolean = false,
 ) {
     val isNew: Boolean get() = id == 0L
 
@@ -106,6 +119,8 @@ class CategoryRepository @Inject constructor(
             color = entity.color,
             isActive = entity.isActive,
             isProtected = entity.isProtected,
+            parentId = entity.parentId,
+            hasChildren = categoryDao.getAll().any { it.parentId == entity.id },
         )
     }
 
@@ -117,6 +132,13 @@ class CategoryRepository @Inject constructor(
         }
         val now = AppTime.now()
         if (draft.isNew) {
+            val parentId = resolveParentId(
+                requestedParentId = draft.parentId,
+                selfId = null,
+                isProtected = false,
+                selfHasChildren = false,
+                parentCandidate = draft.parentId?.let { categoryDao.getById(it) },
+            )
             val id = categoryDao.upsert(
                 CategoryEntity(
                     name = name,
@@ -125,6 +147,7 @@ class CategoryRepository @Inject constructor(
                     sortOrder = categoryDao.maxSortOrder() + 1,
                     isActive = true,
                     isProtected = false,
+                    parentId = parentId,
                     createdAt = now,
                     updatedAt = now,
                 ),
@@ -135,11 +158,19 @@ class CategoryRepository @Inject constructor(
             ?: return@withContext CategorySaveResult.Saved(draft.id)
         // 保留项只允许改图标/颜色，名字是自动记账的落点不能动
         val newName = if (existing.isProtected) existing.name else name
+        val parentId = resolveParentId(
+            requestedParentId = draft.parentId,
+            selfId = existing.id,
+            isProtected = existing.isProtected,
+            selfHasChildren = categoryDao.getAll().any { it.parentId == existing.id },
+            parentCandidate = draft.parentId?.let { categoryDao.getById(it) },
+        )
         categoryDao.update(
             existing.copy(
                 name = newName,
                 icon = draft.icon,
                 color = draft.color,
+                parentId = parentId,
                 updatedAt = now,
             ),
         )
@@ -156,10 +187,15 @@ class CategoryRepository @Inject constructor(
         categoryDao.update(existing.copy(isActive = active, updatedAt = AppTime.now()))
     }
 
-    /** 软删除。保留项不可删。 */
+    /**
+     * 软删除。保留项不可删；**有子分类的也不可删**--子分类不会被连带删掉
+     * （它们可能各自有账目），留着会变成挂在一个「不存在」的父分类下面的孤儿。
+     * 想删父分类，得先把子分类删掉或挪走。
+     */
     suspend fun delete(id: Long): Unit = withContext(io) {
         val existing = categoryDao.getById(id) ?: return@withContext
         if (existing.isProtected) return@withContext
+        if (categoryDao.getAll().any { it.parentId == id }) return@withContext
         categoryDao.softDelete(id, AppTime.now())
     }
 
@@ -171,15 +207,23 @@ class CategoryRepository @Inject constructor(
     /**
      * 与相邻分类交换位置（[delta] = -1 上移 / +1 下移）。
      *
+     * **只在同一父分类下的兄弟之间移动**：顶级分类只跟其他顶级分类比较，
+     * 子分类只跟同一父分类下的其他子分类比较--不然「上移」能把一个子分类
+     * 移到跟它毫不相关的顶级分类中间，管理页的分组显示就乱了。
+     *
      * 排序值可能有重复或空洞（种子灌的是 1..10，用户删过再加就会跳号），
-     * 所以不做 `sortOrder ± 1` 的算术，而是取当前列表算出目标下标再**整表重排**成 1..n
-     * ——只有这样才能保证任何历史数据下拖动都稳定。分类量级最多几十条，代价可忽略。
+     * 所以不做 `sortOrder ± 1` 的算术，而是取当前兄弟列表算出目标下标再
+     * **整组重排**成 1..n——只有这样才能保证任何历史数据下拖动都稳定。
+     * 不同父分类下的兄弟组各自独立编号，`sort_order` 出现跨组重复值是正常的，
+     * 反正没有任何查询会跨组直接按 sort_order 排序（都是先按 parentId 分组再排）。
      */
     suspend fun move(id: Long, delta: Int): Unit = withContext(io) {
-        val ordered = categoryDao.getAll()
-        val reordered = reorder(ordered.map { it.id }, id, delta) ?: return@withContext
+        val all = categoryDao.getAll()
+        val target = all.firstOrNull { it.id == id } ?: return@withContext
+        val siblings = all.filter { it.parentId == target.parentId }
+        val reordered = reorder(siblings.map { it.id }, id, delta) ?: return@withContext
         val now = AppTime.now()
-        val byId = ordered.associateBy { it.id }
+        val byId = siblings.associateBy { it.id }
         reordered.forEachIndexed { index, categoryId ->
             val entity = byId[categoryId] ?: return@forEachIndexed
             val newOrder = index + 1
@@ -197,7 +241,36 @@ class CategoryRepository @Inject constructor(
         sortOrder = sortOrder,
         isActive = isActive,
         isProtected = isProtected,
+        parentId = parentId,
     )
+}
+
+/**
+ * 校验并解析要落库的 `parentId`（PRD 3.6.1「支持自建子分类……最多两级」）。
+ *
+ * 四条规则，任一条不满足就退回顶级（`null`）而不是报错--这个函数是最后一道防线，
+ * UI 层的选择器本来就只会给出合法选项，这里的校验是防御性的：
+ * 1. 保留项（未分类）永远是顶级，忽略传入值--它必须稳定，自动记账没命中规则要有地方落。
+ * 2. 不能把自己设成自己的父分类。
+ * 3. **自己已经有子分类的不能再选父分类**--那样会出现三级（自己的孩子变成孙子）。
+ * 4. 父分类候选必须本身是顶级（`parentCandidate.parentId == null`）--
+ *    否则同样会出现三级（父分类的父分类变成祖父）。
+ *
+ * 纯函数，[CategoryParentTest] 钉死。
+ */
+fun resolveParentId(
+    requestedParentId: Long?,
+    selfId: Long?,
+    isProtected: Boolean,
+    selfHasChildren: Boolean,
+    parentCandidate: CategoryEntity?,
+): Long? {
+    if (isProtected) return null
+    if (requestedParentId == null) return null
+    if (requestedParentId == selfId) return null
+    if (selfHasChildren) return null
+    if (parentCandidate == null || parentCandidate.parentId != null) return null
+    return requestedParentId
 }
 
 /**
